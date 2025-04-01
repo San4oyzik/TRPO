@@ -7,7 +7,6 @@ const jwt = require('jsonwebtoken');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 
-// выводим список пользователей
 router.get('/', authMiddleware, async (req, res) => { 
   try {
     const users = await User.find({});
@@ -18,7 +17,6 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// вывод отдельного пользователя по его userId
 router.get('/:userId', authMiddleware, async (req, res) => { 
   const userId = req.params.userId
   try {
@@ -52,7 +50,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// функция добавлния пользователя
 router.post('/', async (req, res) => {
   const {username, email, roles} = req.body
   const newUser = {username, email, roles}
@@ -77,7 +74,6 @@ router.delete('/:userId', authMiddleware, async (req, res) => {
   }
 })
 
-// Изменяем имя пользователя
 router.put('/user/:userId/edit', authMiddleware, async (req, res) => {
   const userId = req.params.userId;
   const {username, email} = req.body;
