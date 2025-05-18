@@ -5,6 +5,7 @@ const { MESSAGE, PORT } = require ('./const');
 const app = express();
 const userRoutes = require('./routes/userRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
+const serviceRoutes = require('./routes/serviceRoutes');
 
 app.use(express.json())
 
@@ -22,6 +23,7 @@ app.get('/', (req, res) => {
 
 app.use('/user', userRoutes);
 app.use('/appointments', appointmentRoutes);
+app.use('/services', serviceRoutes);
 
 
 app.listen(PORT, () => {

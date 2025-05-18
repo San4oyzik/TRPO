@@ -6,8 +6,12 @@ async function createAppointment(data) {
 }
 
 async function getAppointments(filter = {}) {
-  return await Appointment.find(filter).populate('clientId').populate('employeeId');
+  return await Appointment.find(filter)
+    .populate('clientId', 'username email')
+    .populate('employeeId', 'username email')
+    .populate('serviceId', 'name duration price'); // <— вот тут подтягиваем название, цену и т.д.
 }
+
 
 async function updateAppointment(id, update) {
   return await Appointment.findByIdAndUpdate(id, update, { new: true });

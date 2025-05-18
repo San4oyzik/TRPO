@@ -23,13 +23,13 @@ router.get('/', authMiddleware, async (req, res) => {
 // Создание записи
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const clientId = req.user._id; // из токена
-    const { employeeId, service, date } = req.body;
+    const clientId = req.user._id;
+    const { employeeId, serviceId, date } = req.body;
 
     const newAppointment = await createAppointment({
       clientId,
       employeeId,
-      service,
+      serviceId,
       date
     });
 

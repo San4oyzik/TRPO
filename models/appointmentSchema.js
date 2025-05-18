@@ -11,8 +11,9 @@ const AppointmentSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  service: {
-    type: String,
+  serviceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Service',
     required: true
   },
   date: {
@@ -24,7 +25,9 @@ const AppointmentSchema = new mongoose.Schema({
     enum: ['active', 'cancelled', 'completed'],
     default: 'active'
   }
-}, { timestamps: true });
+}, {
+  timestamps: true
+});
 
 const Appointment = mongoose.model('Appointment', AppointmentSchema);
 module.exports = { Appointment };
