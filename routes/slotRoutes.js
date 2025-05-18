@@ -81,4 +81,22 @@ router.get('/availability', authMiddleware, async (req, res) => {
   }
 });
 
+
+// Получение всех слотов конкретного сотрудника
+router.get('/', authMiddleware, async (req, res) => {
+  const { employeeId } = req.query;
+
+  if (!employeeId) {
+    return res.status(400).json({ error: 'Не передан employeeId' });
+  }
+
+  try {
+    const slots = await Slot.find({ employeeId });
+    res.json(slots);
+  } catch (err) {
+    console.error('Ошибка при получении слотов:', err);
+    res.status(500).json({ error: 'Ошибка при получении слотов' });
+  }
+});
+
 module.exports = router;

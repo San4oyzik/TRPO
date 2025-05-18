@@ -2,18 +2,19 @@ const { User } = require('../models/userSchema.js');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-const createUser = async ({ username, email, password }) => {
+// Создание нового пользователя с полями fullName и phone
+const createUser = async ({ fullName, phone, password }) => {
   const hashedPassword = await bcrypt.hash(password, 10);
   return User.create({
-    username,
-    email,
+    fullName,
+    phone,
     password: hashedPassword
   });
 };
 
-
-const loginUser = async (email, password) => {
-  const user = await User.findOne({ email });
+// Логин и генерация токена по телефону
+const loginUser = async (phone, password) => {
+  const user = await User.findOne({ phone });
   if (!user) throw new Error('Пользователь не найден');
 
   const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -23,23 +24,23 @@ const loginUser = async (email, password) => {
   return token;
 };
 
+// Удаление пользователя
 const deleteUser = (userId) => {
-  return User.findByIdAndDelete(userId)
-}
+  return User.findByIdAndDelete(userId);
+};
 
-const updateUser = (userId, {username, email}) => {
+// Обновление пользователя
+const updateUser = (userId, { fullName, phone }) => {
   return User.findByIdAndUpdate(
     userId,
-    {
-      username,
-      email
-    },
-    {new: true}
-)
-}
+    { fullName, phone },
+    { new: true }
+  );
+};
 
+// Получение пользователя по ID
 const getUserById = (userId) => {
   return User.findById(userId);
-}
+};
 
-module.exports = {createUser, loginUser, deleteUser, updateUser, getUserById};
+module.exports = { createUser, loginUser, deleteUser, updateUser, getUserById };

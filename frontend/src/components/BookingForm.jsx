@@ -128,7 +128,7 @@ const BookingForm = () => {
           <select className="w-full p-2 border rounded" value={selectedEmployee} onChange={(e) => setSelectedEmployee(e.target.value)} required>
             <option value="">Выберите мастера</option>
             {employees.map((emp) => (
-              <option key={emp._id} value={emp._id}>{emp.username}</option>
+              <option key={emp._id} value={emp._id}>{emp.fullName || 'Без имени'}</option>
             ))}
           </select>
         </div>

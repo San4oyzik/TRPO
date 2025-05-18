@@ -11,12 +11,19 @@ const createAppointment = ({ clientId, employeeId, serviceId, date, slotTimes })
 };
 
 
+const mongoose = require('mongoose');
+
 async function getAppointments(filter = {}) {
+  if (filter.employeeId) {
+    filter.employeeId = new mongoose.Types.ObjectId(filter.employeeId);
+  }
+
   return await Appointment.find(filter)
-    .populate('clientId', 'username email')
-    .populate('employeeId', 'username email')
-    .populate('serviceId', 'name duration price'); // <— вот тут подтягиваем название, цену и т.д.
+    .populate('clientId', 'fullName')
+    .populate('employeeId', 'fullName')
+    .populate('serviceId', 'name duration price');
 }
+
 
 
 async function updateAppointment(id, update) {

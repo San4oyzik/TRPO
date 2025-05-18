@@ -5,7 +5,8 @@ const { createAppointment, getAppointments, updateAppointment, cancelAppointment
 const authMiddleware = require('../middlewares/authMiddleware');
 const { MESSAGE } = require('../const');
 const Slot = require('../models/slotSchema');
-const { Service } = require('../models/serviceSchema');
+const {Service} = require('../models/serviceSchema');
+const Appointment = require('../models/appointmentSchema').Appointment;
 const { addMinutes, format } = require('date-fns');
 
 // Получение всех записей или по фильтру (клиент или сотрудник)
@@ -30,13 +31,6 @@ router.post('/', authMiddleware, async (req, res) => {
     const clientId = req.user._id;
     const { employeeId, serviceId, date } = req.body;
 
-    const newAppointment = await createAppointment({
-      clientId,
-      employeeId,
-      serviceId,
-      date
-    });
-
     const slotDate = date.split('T')[0];
     const startTime = date.split('T')[1].slice(0, 5);
 
@@ -51,8 +45,16 @@ router.post('/', authMiddleware, async (req, res) => {
 
     while (current < end) {
       bookedTimes.push(format(current, 'HH:mm'));
-      current = addMinutes(current, 30); // шаг слотов = 30 мин
+      current = addMinutes(current, 30);
     }
+
+    const newAppointment = await createAppointment({
+      clientId,
+      employeeId,
+      serviceId,
+      date,
+      slotTimes: bookedTimes
+    });
 
     const updateResult = await Slot.updateMany(
       {
@@ -89,8 +91,22 @@ router.put('/:id', authMiddleware, async (req, res) => {
 // Отмена записи
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
+    const appointment = await Appointment.findById(req.params.id);
+    if (!appointment) return res.status(404).send({ error: 'Запись не найдена' });
+
+    const slotDate = format(appointment.date, 'yyyy-MM-dd');
+    const bookedTimes = appointment.slotTimes || [];
+
+    await Slot.updateMany(
+      {
+        employeeId: appointment.employeeId,
+        date: slotDate,
+        time: { $in: bookedTimes }
+      },
+      { isBooked: false }
+    );
+
     const cancelled = await cancelAppointment(req.params.id);
-    if (!cancelled) return res.status(404).send({ error: 'Запись не найдена' });
     res.send(cancelled);
   } catch (e) {
     console.error(e);
