@@ -99,15 +99,72 @@ const EmployeeDashboard = () => {
     }
   };
 
+  const deleteSlot = async (slotId) => {
+    try {
+      await axios.delete(`http://localhost:8000/slots/${slotId}`, { headers });
+      fetchEvents();
+    } catch (e) {
+      console.error('Ошибка при удалении слота:', e);
+    }
+  };
+
   const handleEventClick = (info) => {
-    if (info.event.extendedProps.type === 'appointment') {
+    const event = info.event;
+    const type = event.extendedProps.type;
+
+    if (type === 'appointment') {
       setSelectedEvent({
-        title: info.event.title,
-        fullName: info.event.extendedProps.fullName,
-        service: info.event.extendedProps.service,
-        price: info.event.extendedProps.price,
-        duration: info.event.extendedProps.duration
+        title: event.title,
+        fullName: event.extendedProps.fullName,
+        service: event.extendedProps.service,
+        price: event.extendedProps.price,
+        duration: event.extendedProps.duration
       });
+    } else if (type === 'slot') {
+      const confirmed = window.confirm('Удалить этот свободный слот?');
+      if (!confirmed) return;
+      deleteSlot(event.id);
+    }
+  };
+
+  const handleSlotGenerate = async (selectInfo) => {
+    const calendarApi = selectInfo.view.calendar;
+    calendarApi.unselect();
+
+    const start = selectInfo.start;
+    const end = selectInfo.end;
+
+    const confirmed = window.confirm(
+      `Сгенерировать слоты с ${start.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+      })} до ${end.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+      })}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const date = start.toISOString().split('T')[0];
+      const startTime = start.toTimeString().slice(0, 5);
+      const endTime = end.toTimeString().slice(0, 5);
+
+      await axios.post(
+        'http://localhost:8000/slots/generate',
+        {
+          employeeId,
+          date,
+          startTime,
+          endTime
+        },
+        { headers }
+      );
+
+      fetchEvents();
+    } catch (e) {
+      console.error('Ошибка при генерации слотов:', e);
     }
   };
 
@@ -122,13 +179,18 @@ const EmployeeDashboard = () => {
         plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
         initialView="timeGridWeek"
         editable={true}
-        selectable={false}
+        selectable={true}
+        selectMirror={true}
+        select={handleSlotGenerate}
         events={events}
         eventDrop={handleEventDrop}
         eventResize={handleEventDrop}
         eventClick={handleEventClick}
         locale="ru"
         height="auto"
+        slotMinTime="08:00:00"
+        slotMaxTime="21:00:00"
+        allDaySlot={false}
         slotDuration="00:15:00"
         slotLabelInterval="00:30:00"
       />

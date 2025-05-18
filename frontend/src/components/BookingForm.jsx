@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const BookingForm = () => {
   const [services, setServices] = useState([]);
@@ -11,6 +12,7 @@ const BookingForm = () => {
   const [availableTimes, setAvailableTimes] = useState([]);
   const [selectedTime, setSelectedTime] = useState('');
   const [message, setMessage] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -96,7 +98,6 @@ const BookingForm = () => {
 
       setMessage('Успешно записан!');
 
-      // 🔁 Обновляем доступные слоты
       const res = await axios.get(`http://localhost:8000/slots/availability?employeeId=${selectedEmployee}`, { headers });
       setAvailableDates(res.data.availableDates);
       setAvailableTimes(res.data.slots[selectedDate] || []);
@@ -161,6 +162,13 @@ const BookingForm = () => {
           Записаться
         </button>
       </form>
+
+      <button
+        onClick={() => navigate('/user-dashboard')}
+        className="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+      >
+        Назад
+      </button>
     </div>
   );
 };

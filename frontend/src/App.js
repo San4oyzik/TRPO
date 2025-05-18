@@ -8,6 +8,7 @@ import {
 import BookingForm from "./components/BookingForm";
 import PrivateRoute from "./privateRoute";
 import EmployeeDashboard from "./components/EmployeeDashboard";
+import UserDashboard from "./components/UserDashboard"; // добавлен
 
 function Form() {
   const [mode, setMode] = useState("register");
@@ -43,7 +44,15 @@ function Form() {
       if (data.token) {
         localStorage.setItem("token", data.token);
         setMessage("Успешный вход!");
-        navigate("/booking");
+
+        const decoded = JSON.parse(atob(data.token.split('.')[1]));
+        const roles = decoded.roles || [];
+
+        if (roles.includes('employee')) {
+          navigate("/employee-calendar");
+        } else {
+          navigate("/user-dashboard");
+        }
       } else {
         setMessage(data.message || data.error || "Успешно");
       }
@@ -174,6 +183,14 @@ export default function App() {
           element={
             <PrivateRoute>
               <EmployeeDashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/user-dashboard"
+          element={
+            <PrivateRoute>
+              <UserDashboard />
             </PrivateRoute>
           }
         />

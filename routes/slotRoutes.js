@@ -7,46 +7,38 @@ const { addMinutes, format } = require('date-fns');
 
 // Генерация слотов (например: шаг 30 минут с 10:00 до 18:00)
 router.post('/generate', authMiddleware, async (req, res) => {
-  const { employeeId } = req.body;
+  const { employeeId, date, startTime, endTime } = req.body;
   const roles = req.user.roles || [];
 
   if (!roles.includes('employee') && !roles.includes('admin')) {
     return res.status(403).json({ error: 'Недостаточно прав для генерации слотов' });
   }
 
-  const START_HOUR = 10;
-  const END_HOUR = 18;
-  const STEP_MINUTES = 30;
-  const DAYS_AHEAD = 7;
+  if (!employeeId || !date || !startTime || !endTime) {
+    return res.status(400).json({ error: 'Нужны employeeId, date, startTime, endTime' });
+  }
 
   try {
-    const today = new Date();
+    const day = new Date(date);
+    const timeStart = new Date(`${date}T${startTime}`);
+    const timeEnd = new Date(`${date}T${endTime}`);
+    const STEP_MINUTES = 30;
 
-    for (let i = 0; i < DAYS_AHEAD; i++) {
-      const day = new Date(today);
-      day.setDate(today.getDate() + i);
+    while (timeStart < timeEnd) {
       const dateStr = format(day, 'yyyy-MM-dd');
+      const timeStr = format(timeStart, 'HH:mm');
 
-      let time = new Date(day);
-      time.setHours(START_HOUR, 0, 0, 0);
-      const endTime = new Date(day);
-      endTime.setHours(END_HOUR, 0, 0, 0);
-
-      while (time < endTime) {
-        const timeStr = format(time, 'HH:mm');
-
-        const existing = await Slot.findOne({ employeeId, date: dateStr, time: timeStr });
-        if (!existing) {
-          await Slot.create({ employeeId, date: dateStr, time: timeStr });
-        }
-
-        time = addMinutes(time, STEP_MINUTES);
+      const existing = await Slot.findOne({ employeeId, date: dateStr, time: timeStr });
+      if (!existing) {
+        await Slot.create({ employeeId, date: dateStr, time: timeStr });
       }
+
+      timeStart.setMinutes(timeStart.getMinutes() + STEP_MINUTES);
     }
 
-    res.json({ message: 'Слоты успешно сгенерированы' });
+    res.json({ message: 'Слоты успешно созданы' });
   } catch (err) {
-    console.error(err);
+    console.error('Ошибка генерации:', err);
     res.status(500).json({ error: 'Ошибка генерации слотов' });
   }
 });
@@ -96,6 +88,44 @@ router.get('/', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Ошибка при получении слотов:', err);
     res.status(500).json({ error: 'Ошибка при получении слотов' });
+  }
+});
+
+router.post('/', authMiddleware, async (req, res) => {
+  try {
+    const { employeeId, date, time } = req.body;
+
+    if (!employeeId || !date || !time) {
+      return res.status(400).json({ error: 'employeeId, date и time обязательны' });
+    }
+
+    const existing = await Slot.findOne({ employeeId, date, time });
+    if (existing) {
+      return res.status(409).json({ error: 'Такой слот уже существует' });
+    }
+
+    const newSlot = await Slot.create({ employeeId, date, time });
+    res.status(201).json(newSlot);
+  } catch (err) {
+    console.error('Ошибка при создании слота:', err);
+    res.status(500).json({ error: 'Ошибка при создании слота' });
+  }
+});
+
+router.delete('/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const slot = await Slot.findById(id);
+    if (!slot) {
+      return res.status(404).json({ error: 'Слот не найден' });
+    }
+
+    await Slot.findByIdAndDelete(id);
+    res.json({ message: 'Слот удалён' });
+  } catch (err) {
+    console.error('Ошибка при удалении слота:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
 

@@ -90,24 +90,30 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
 // Отмена записи
 router.delete('/:id', authMiddleware, async (req, res) => {
-  try {
-    const appointment = await Appointment.findById(req.params.id);
+try {
+    const appointment = await Appointment.findById(req.params.id).populate('serviceId');
     if (!appointment) return res.status(404).send({ error: 'Запись не найдена' });
 
-    const slotDate = format(appointment.date, 'yyyy-MM-dd');
-    const bookedTimes = appointment.slotTimes || [];
+    const duration = appointment.serviceId?.duration || 60;
+    const start = new Date(appointment.date);
+    const end = new Date(start.getTime() + duration * 60000);
+
+    const slotDate = format(start, 'yyyy-MM-dd');
+    const startTime = start.toTimeString().slice(0, 5);
+    const endTime = end.toTimeString().slice(0, 5);
 
     await Slot.updateMany(
       {
         employeeId: appointment.employeeId,
         date: slotDate,
-        time: { $in: bookedTimes }
+        time: { $gte: startTime, $lt: endTime }
       },
       { isBooked: false }
     );
 
-    const cancelled = await cancelAppointment(req.params.id);
-    res.send(cancelled);
+    await Appointment.findByIdAndDelete(req.params.id);
+
+    res.send({ message: 'Запись успешно отменена' });
   } catch (e) {
     console.error(e);
     res.status(500).send({ error: e.message });
