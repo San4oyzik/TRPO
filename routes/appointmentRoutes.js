@@ -1,8 +1,12 @@
+// routes/appointmentRoutes.js
 const express = require('express');
 const router = express.Router();
 const { createAppointment, getAppointments, updateAppointment, cancelAppointment } = require('../services/appointmentService');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { MESSAGE } = require('../const');
+const Slot = require('../models/slotSchema');
+const { Service } = require('../models/serviceSchema');
+const { addMinutes, format } = require('date-fns');
 
 // Получение всех записей или по фильтру (клиент или сотрудник)
 router.get('/', authMiddleware, async (req, res) => {
@@ -32,6 +36,36 @@ router.post('/', authMiddleware, async (req, res) => {
       serviceId,
       date
     });
+
+    const slotDate = date.split('T')[0];
+    const startTime = date.split('T')[1].slice(0, 5);
+
+    const service = await Service.findById(serviceId);
+    const duration = service?.duration || 30;
+
+    const start = new Date(date);
+    const end = addMinutes(start, duration);
+
+    const bookedTimes = [];
+    let current = new Date(start);
+
+    while (current < end) {
+      bookedTimes.push(format(current, 'HH:mm'));
+      current = addMinutes(current, 30); // шаг слотов = 30 мин
+    }
+
+    const updateResult = await Slot.updateMany(
+      {
+        employeeId,
+        date: slotDate,
+        time: { $in: bookedTimes }
+      },
+      { isBooked: true }
+    );
+
+    if (updateResult.modifiedCount === 0) {
+      console.warn('Слоты не найдены или не обновлены:', { employeeId, slotDate, bookedTimes });
+    }
 
     res.status(201).send(newAppointment);
   } catch (e) {

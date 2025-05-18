@@ -17,6 +17,7 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
+
 router.get('/:userId', authMiddleware, async (req, res) => { 
   const userId = req.params.userId
   try {

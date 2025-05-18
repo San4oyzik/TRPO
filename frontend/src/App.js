@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { BrowserRouter as Router, Route, Routes, useNavigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useNavigate
+} from "react-router-dom";
+import BookingForm from "./components/BookingForm";
 import PrivateRoute from "./privateRoute";
 
 function Form() {
@@ -36,7 +42,7 @@ function Form() {
       if (data.token) {
         localStorage.setItem("token", data.token);
         setMessage("Успешный вход!");
-        navigate("/dashboard");
+        navigate("/booking"); // РЕДИРЕКТ НА ЗАПИСЬ
       } else {
         setMessage(data.message || data.error || "Успешно");
       }
@@ -144,6 +150,14 @@ export default function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Form />} />
+        <Route
+          path="/booking"
+          element={
+            <PrivateRoute>
+              <BookingForm />
+            </PrivateRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={

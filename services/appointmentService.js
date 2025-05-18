@@ -1,9 +1,15 @@
 const { Appointment } = require('../models/appointmentSchema');
 
-async function createAppointment(data) {
-  const appointment = new Appointment(data);
-  return await appointment.save();
-}
+const createAppointment = ({ clientId, employeeId, serviceId, date, slotTimes }) => {
+  return Appointment.create({
+    clientId,
+    employeeId,
+    serviceId,
+    date,
+    slotTimes
+  });
+};
+
 
 async function getAppointments(filter = {}) {
   return await Appointment.find(filter)
