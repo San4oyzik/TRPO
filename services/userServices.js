@@ -2,7 +2,7 @@ const { User } = require('../models/userSchema.js');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// Создание нового пользователя с полями fullName и phone
+
 const createUser = async ({ fullName, phone, password }) => {
   const hashedPassword = await bcrypt.hash(password, 10);
   return User.create({
@@ -12,7 +12,6 @@ const createUser = async ({ fullName, phone, password }) => {
   });
 };
 
-// Логин и генерация токена по телефону
 const loginUser = async (phone, password) => {
   const user = await User.findOne({ phone });
   if (!user) throw new Error('Пользователь не найден');
@@ -24,12 +23,10 @@ const loginUser = async (phone, password) => {
   return token;
 };
 
-// Удаление пользователя
 const deleteUser = (userId) => {
   return User.findByIdAndDelete(userId);
 };
 
-// Обновление пользователя
 const updateUser = (userId, { fullName, phone }) => {
   return User.findByIdAndUpdate(
     userId,
@@ -38,7 +35,6 @@ const updateUser = (userId, { fullName, phone }) => {
   );
 };
 
-// Получение пользователя по ID
 const getUserById = (userId) => {
   return User.findById(userId);
 };

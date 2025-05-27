@@ -5,7 +5,6 @@ const { User } = require('../models/userSchema');
 const { createUser, deleteUser, updateUser, loginUser } = require('../services/userServices');
 const authMiddleware = require('../middlewares/authMiddleware');
 
-// Получение всех пользователей
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const users = await User.find({});
@@ -16,7 +15,6 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Получение пользователя по ID
 router.get('/:userId', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -27,7 +25,6 @@ router.get('/:userId', authMiddleware, async (req, res) => {
   }
 });
 
-// Регистрация пользователя
 router.post('/register', async (req, res) => {
   const { fullName, phone, password } = req.body;
   try {
@@ -39,7 +36,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Авторизация пользователя
 router.post('/login', async (req, res) => {
   const { phone, password } = req.body;
   try {
@@ -63,7 +59,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Удаление пользователя
 router.delete('/:userId', authMiddleware, async (req, res) => {
   try {
     await deleteUser(req.params.userId);
@@ -74,7 +69,6 @@ router.delete('/:userId', authMiddleware, async (req, res) => {
   }
 });
 
-// Обновление данных пользователя
 router.put('/user/:userId/edit', authMiddleware, async (req, res) => {
   const { fullName, phone } = req.body;
   try {
