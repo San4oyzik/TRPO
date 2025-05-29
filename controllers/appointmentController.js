@@ -1,21 +1,49 @@
 const Appointment = require('../models/appointmentSchema');
+const Service = require('../models/serviceSchema');
 
 // Создание новой записи
 const createAppointment = async (req, res) => {
   try {
-    const { clientId, employeeId, service, date } = req.body;
+    const { clientId, employeeId, services: serviceIds, date } = req.body;
+    if (!Array.isArray(serviceIds) || serviceIds.length === 0) {
+      return res.status(400).json({ error: 'Необходимо указать хотя бы одну услугу' });
+    }
+
+    // Подгружаем данные по выбранным услугам
+    const servicesData = await Service.find({ _id: { $in: serviceIds } });
+    if (servicesData.length !== serviceIds.length) {
+      return res.status(400).json({ error: 'Одна или несколько услуг не найдены' });
+    }
+
+    // Формируем массив services и вычисляем общие показатели
+    const services = servicesData.map(s => ({
+      serviceId: s._id,
+      duration: s.duration,
+      price: s.price
+    }));
+    const totalDuration = services.reduce((sum, s) => sum + s.duration, 0);
+    const totalPrice = services.reduce((sum, s) => sum + s.price, 0);
 
     const appointment = new Appointment({
       clientId,
       employeeId,
-      service,
+      services,
+      totalDuration,
+      totalPrice,
       date
     });
 
     await appointment.save();
+    // Подгружаем связанные документы для ответа
+    await appointment
+      .populate('clientId', 'fullName email')
+      .populate('employeeId', 'fullName email')
+      .populate('services.serviceId', 'name duration price')
+      .execPopulate();
 
     res.status(201).json(appointment);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Ошибка при создании записи', details: err.message });
   }
 };
@@ -24,12 +52,19 @@ const createAppointment = async (req, res) => {
 const getAppointments = async (req, res) => {
   try {
     const filter = {};
-    if (req.query.clientId) filter.clientId = req.query.clientId;
+    if (req.query.clientId)   filter.clientId = req.query.clientId;
     if (req.query.employeeId) filter.employeeId = req.query.employeeId;
 
-    const appointments = await Appointment.find(filter).populate('clientId').populate('employeeId');
+    const appointments = await Appointment
+      .find(filter)
+      .populate('clientId', 'fullName email')
+      .populate('employeeId', 'fullName email')
+      .populate('services.serviceId', 'name duration price')
+      .exec();
+
     res.status(200).json(appointments);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Ошибка при получении записей', details: err.message });
   }
 };
@@ -37,23 +72,60 @@ const getAppointments = async (req, res) => {
 // Обновление записи
 const updateAppointment = async (req, res) => {
   try {
-    const appointment = await Appointment.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!appointment) return res.status(404).json({ error: 'Запись не найдена' });
+    const updateData = {};
+    if (req.body.date) {
+      updateData.date = req.body.date;
+    }
+    if (Array.isArray(req.body.services)) {
+      // Если меняются услуги — перезаписываем services, totalDuration и totalPrice
+      const servicesData = await Service.find({ _id: { $in: req.body.services } });
+      if (servicesData.length !== req.body.services.length) {
+        return res.status(400).json({ error: 'Одна или несколько услуг не найдены' });
+      }
+      const services = servicesData.map(s => ({
+        serviceId: s._id,
+        duration: s.duration,
+        price: s.price
+      }));
+      updateData.services = services;
+      updateData.totalDuration = services.reduce((sum, s) => sum + s.duration, 0);
+      updateData.totalPrice = services.reduce((sum, s) => sum + s.price, 0);
+    }
+
+    const appointment = await Appointment.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    )
+      .populate('clientId', 'fullName email')
+      .populate('employeeId', 'fullName email')
+      .populate('services.serviceId', 'name duration price');
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Запись не найдена' });
+    }
 
     res.status(200).json(appointment);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Ошибка при обновлении записи', details: err.message });
   }
 };
 
-// Отмена записи (удаление или смена статуса)
+// Отмена записи (смена статуса на cancelled)
 const cancelAppointment = async (req, res) => {
   try {
-    const appointment = await Appointment.findByIdAndUpdate(req.params.id, { status: 'cancelled' }, { new: true });
-    if (!appointment) return res.status(404).json({ error: 'Запись не найдена' });
-
+    const appointment = await Appointment.findByIdAndUpdate(
+      req.params.id,
+      { status: 'cancelled' },
+      { new: true }
+    );
+    if (!appointment) {
+      return res.status(404).json({ error: 'Запись не найдена' });
+    }
     res.status(200).json(appointment);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Ошибка при отмене записи', details: err.message });
   }
 };

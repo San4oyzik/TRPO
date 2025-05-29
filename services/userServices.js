@@ -27,10 +27,10 @@ const deleteUser = (userId) => {
   return User.findByIdAndDelete(userId);
 };
 
-const updateUser = (userId, { fullName, phone }) => {
+const updateUser = (userId, { fullName, phone, services }) => {
   return User.findByIdAndUpdate(
     userId,
-    { fullName, phone },
+    { fullName, phone, services },
     { new: true }
   );
 };

@@ -14,7 +14,11 @@ const UserSchema = new mongoose.Schema({
   roles: {
     type: [String],
     default: ['user']
-  }
+  },
+  services: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Service'
+  }]
 });
 
 const User = mongoose.model('User', UserSchema);

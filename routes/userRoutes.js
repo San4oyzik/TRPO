@@ -5,9 +5,11 @@ const { User } = require('../models/userSchema');
 const { createUser, deleteUser, updateUser, loginUser } = require('../services/userServices');
 const authMiddleware = require('../middlewares/authMiddleware');
 
+// Получение всех пользователей (включая услуги для сотрудников)
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const users = await User.find({});
+    const users = await User.find({})
+      .populate('services', 'name duration price');
     res.send(users);
   } catch (e) {
     console.error(e);
@@ -15,9 +17,12 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
+// Получение одного пользователя по ID с услугами
 router.get('/:userId', authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId);
+    const user = await User.findById(req.params.userId)
+      .populate('services', 'name duration price');
+    if (!user) return res.status(404).send({ error: 'Пользователь не найден' });
     res.send(user);
   } catch (e) {
     console.error(e);
@@ -25,6 +30,7 @@ router.get('/:userId', authMiddleware, async (req, res) => {
   }
 });
 
+// Регистрация нового пользователя
 router.post('/register', async (req, res) => {
   const { fullName, phone, password } = req.body;
   try {
@@ -36,6 +42,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// Логин
 router.post('/login', async (req, res) => {
   const { phone, password } = req.body;
   try {
@@ -47,11 +54,11 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Создание пользователя с ролями (вручную, например, админом)
-router.post('/', async (req, res) => {
-  const { fullName, phone, password, roles } = req.body;
+// Создание пользователя (админом)
+router.post('/', authMiddleware, async (req, res) => {
+  const { fullName, phone, password, roles, services } = req.body;
   try {
-    await createUser({ fullName, phone, password, roles });
+    await createUser({ fullName, phone, password, roles, services });
     res.send(MESSAGE.CREATE_USER);
   } catch (e) {
     console.error(e);
@@ -59,6 +66,7 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Удаление пользователя
 router.delete('/:userId', authMiddleware, async (req, res) => {
   try {
     await deleteUser(req.params.userId);
@@ -69,10 +77,11 @@ router.delete('/:userId', authMiddleware, async (req, res) => {
   }
 });
 
-router.put('/user/:userId/edit', authMiddleware, async (req, res) => {
-  const { fullName, phone } = req.body;
+// Обновление данных пользователя
+router.put('/:userId/edit', authMiddleware, async (req, res) => {
+  const { fullName, phone, services } = req.body;
   try {
-    await updateUser(req.params.userId, { fullName, phone });
+    await updateUser(req.params.userId, { fullName, phone, services });
     res.send(MESSAGE.UPDATE_USER_DATA);
   } catch (e) {
     console.error(e);

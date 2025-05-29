@@ -11,18 +11,32 @@ const AppointmentSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  serviceId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Service',
+  services: [{
+    serviceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Service',
+      required: true
+    },
+    duration: {
+      type: Number,
+      required: true
+    },
+    price: {
+      type: Number,
+      required: true
+    }
+  }],
+  totalDuration: {
+    type: Number,
+    required: true
+  },
+  totalPrice: {
+    type: Number,
     required: true
   },
   date: {
     type: Date,
     required: true
-  },
-  slotTimes: {
-    type: [String],
-    default: []
   },
   status: {
     type: String,

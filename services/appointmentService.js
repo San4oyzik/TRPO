@@ -1,99 +1,183 @@
+// services/appointmentService.js
 const { Appointment } = require('../models/appointmentSchema');
 const { Service } = require('../models/serviceSchema');
-const mongoose = require('mongoose');
+const Slot = require('../models/slotSchema');
+const { addMinutes, format } = require('date-fns');
 
-const createAppointment = async ({ clientId, employeeId, serviceId, date }) => {
-  const service = await Service.findById(serviceId);
-  if (!service) throw new Error('Услуга не найдена');
+/**
+ * Create a new appointment with multiple services.
+ * @param {{ clientId, employeeId, services: ObjectId[], date: string }} data
+ */
+async function createAppointment({ clientId, employeeId, services: serviceIds, date }) {
+  if (!Array.isArray(serviceIds) || serviceIds.length === 0) {
+    throw new Error('Нужно указать хотя бы одну услугу');
+  }
 
+  // Load selected services from DB
+  const servicesData = await Service.find({ _id: { $in: serviceIds } });
+  if (servicesData.length !== serviceIds.length) {
+    throw new Error('Одна или несколько услуг не найдены');
+  }
+
+  // Build embedded services array and compute totals
+  const services = servicesData.map(s => ({
+    serviceId: s._id,
+    duration: s.duration,
+    price: s.price
+  }));
+  const totalDuration = services.reduce((sum, s) => sum + s.duration, 0);
+  const totalPrice    = services.reduce((sum, s) => sum + s.price, 0);
+
+  // Check for scheduling conflicts across the whole combined duration
   const start = new Date(date);
-  const end = new Date(start.getTime() + service.duration * 60000);
-
+  const end   = addMinutes(start, totalDuration);
   const conflict = await Appointment.findOne({
     employeeId,
     status: { $ne: 'cancelled' },
-    date: {
-      $lt: end,
-      $gte: new Date(start.getTime() - service.duration * 60000),
-    }
+    date: { $lt: end, $gte: start }
   });
-
   if (conflict) {
     throw new Error('Слот уже занят другим клиентом');
   }
 
-  return Appointment.create({
+  // Create appointment document
+  const appt = await Appointment.create({
     clientId,
     employeeId,
-    serviceId,
-    date,
+    services,
+    totalDuration,
+    totalPrice,
+    date
   });
-};
 
-async function getAppointments(filter = {}) {
-  if (filter.employeeId) {
-    filter.employeeId = new mongoose.Types.ObjectId(filter.employeeId);
+  // Mark the corresponding half-hour slots as booked
+  const slotDate = format(start, 'yyyy-MM-dd');
+  let cursor = new Date(start);
+  const bookedTimes = [];
+  while (cursor < end) {
+    bookedTimes.push(format(cursor, 'HH:mm'));
+    cursor = addMinutes(cursor, 30);
   }
+  await Slot.updateMany(
+    { employeeId, date: slotDate, time: { $in: bookedTimes } },
+    { isBooked: true }
+  );
 
-  const appointments = await Appointment.find(filter)
+  // Populate and return enriched appointment
+  await appt.populate('clientId', 'fullName email');
+  await appt.populate('employeeId', 'fullName email');
+  await appt.populate({ path: 'services.serviceId', select: 'name duration price' });
+  return appt;
+}
+
+/**
+ * Retrieve appointments, optionally filtered by clientId or employeeId.
+ * @param {{ clientId?: string, employeeId?: string }} filter
+ */
+async function getAppointments(filter = {}) {
+  const q = {};
+  if (filter.clientId)   q.clientId   = filter.clientId;
+  if (filter.employeeId) q.employeeId = filter.employeeId;
+
+  const appointments = await Appointment
+    .find(q)
     .populate('clientId', 'fullName')
     .populate('employeeId', 'fullName')
-    .populate('serviceId', 'name duration price');
+    .populate({ path: 'services.serviceId', select: 'name duration price' })
+    .exec();
 
+  // Auto-mark past appointments as completed
   const now = new Date();
-
-  const updates = appointments.map(async (appt) => {
-    const endTime = new Date(new Date(appt.date).getTime() + (appt.serviceId?.duration || 60) * 60000);
-
-    if (appt.status === 'active' && endTime < now) {
+  await Promise.all(appointments.map(async appt => {
+    const end = addMinutes(new Date(appt.date), appt.totalDuration);
+    if (appt.status === 'active' && end < now) {
       appt.status = 'completed';
       await appt.save();
     }
-  });
-
-  await Promise.all(updates);
+  }));
 
   return appointments;
 }
 
-async function updateAppointment(id, update) {
-  return await Appointment.findByIdAndUpdate(id, update, { new: true });
+/**
+ * Update an appointment's date and/or services.
+ * @param {string} id
+ * @param {{ date?: string, services?: ObjectId[] }} data
+ */
+async function updateAppointment(id, { date, services: serviceIds }) {
+  const update = {};
+  if (date) update.date = date;
+
+  if (Array.isArray(serviceIds)) {
+    const servicesData = await Service.find({ _id: { $in: serviceIds } });
+    if (servicesData.length !== serviceIds.length) {
+      throw new Error('Одна или несколько услуг не найдены');
+    }
+    const services = servicesData.map(s => ({
+      serviceId: s._id,
+      duration: s.duration,
+      price: s.price
+    }));
+    update.services      = services;
+    update.totalDuration = services.reduce((sum, s) => sum + s.duration, 0);
+    update.totalPrice    = services.reduce((sum, s) => sum + s.price, 0);
+  }
+
+  return Appointment
+    .findByIdAndUpdate(id, update, { new: true })
+    .populate('clientId', 'fullName')
+    .populate('employeeId', 'fullName')
+    .populate({ path: 'services.serviceId', select: 'name duration price' })
+    .exec();
 }
 
-async function cancelAppointment(id, userId) {
-  const appointment = await Appointment.findById(id).populate('serviceId');
-  if (!appointment) throw new Error('Запись не найдена');
+/**
+ * Cancel an appointment: free its slots and set status to 'cancelled'.
+ * @param {string} id
+ */
+async function cancelAppointment(id) {
+  const appt = await Appointment
+    .findById(id)
+    .populate({ path: 'services.serviceId', select: 'duration' });
 
-  const duration = appointment.serviceId?.duration || 60;
-  const start = new Date(appointment.date);
+  if (!appt) throw new Error('Запись не найдена');
 
-  // Вычисляем все слоты, попавшие в интервал записи
-  const end = new Date(start.getTime() + duration * 60000);
-  const slotFilter = {
-    employeeId: appointment.employeeId,
-    date: start.toISOString().split('T')[0],
-    time: { $gte: start.toTimeString().slice(0, 5), $lt: end.toTimeString().slice(0, 5) }
-  };
+  // Calculate occupied time range
+  const start = new Date(appt.date);
+  const end   = addMinutes(start, appt.totalDuration);
 
-  // Освобождаем занятые слоты
-  await Slot.updateMany(slotFilter, { isBooked: false });
+  // Free half-hour slots
+  const slotDate = format(start, 'yyyy-MM-dd');
+  let cursor = new Date(start);
+  const timesToFree = [];
+  while (cursor < end) {
+    timesToFree.push(format(cursor, 'HH:mm'));
+    cursor = addMinutes(cursor, 30);
+  }
+  await Slot.updateMany(
+    { employeeId: appt.employeeId, date: slotDate, time: { $in: timesToFree } },
+    { isBooked: false }
+  );
 
-  // Удаляем запись
-  await Appointment.findByIdAndDelete(id);
-  return { success: true };
+  appt.status = 'cancelled';
+  await appt.save();
+  return appt;
 }
 
-async function isSlotAvailable(employeeId, date, durationMinutes) {
-  const start = new Date(date);
-  const end = new Date(start.getTime() + durationMinutes * 60000);
+/**
+ * Check if a given time range is free for booking.
+ * @param {string} employeeId
+ * @param {string} dateTime ISO string start
+ * @param {number} durationMinutes
+ */
+async function isSlotAvailable(employeeId, dateTime, durationMinutes) {
+  const start = new Date(dateTime);
+  const end   = addMinutes(start, durationMinutes);
 
   const conflict = await Appointment.findOne({
     employeeId,
     status: { $ne: 'cancelled' },
-    date: {
-      $lt: end,
-      $gte: start,
-    }
+    date: { $lt: end, $gte: start }
   });
 
   return !conflict;
