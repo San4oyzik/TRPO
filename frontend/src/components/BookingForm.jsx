@@ -100,15 +100,23 @@ const BookingForm = () => {
         let times = matchedKey ? res.data.slots[matchedKey] : [];
 
         if (selectedServices.length) {
-          const totalDur = selectedServices.reduce((sum, sid) => {
-            const svc = rawServices.find(s => String(s._id) === sid);
-            return sum + (svc?.duration || 0);
-          }, 0);
-          const slotsNeeded = Math.ceil(totalDur / 30);
-          const slotSet = new Set(times);
+          // const slotsNeeded = Math.ceil(totalDur / 30);
+          // const slotSet = new Set(times);
           times = times.filter(t => {
-  const [h, m] = t.split(':').map(Number);
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
   const start = new Date(`${selectedDate}T${t}`);
+
+  if (selectedDate === todayStr && start <= now) {
+    return false; // не показываем прошедшее время на сегодня
+  }
+
+  const totalDur = selectedServices.reduce((sum, sid) => {
+    const svc = rawServices.find(s => String(s._id) === sid);
+    return sum + (svc?.duration || 0);
+  }, 0);
+  const slotsNeeded = Math.ceil(totalDur / 30);
+  const slotSet = new Set(times);
   for (let i = 1; i < slotsNeeded; i++) {
     const next = new Date(start);
     next.setMinutes(next.getMinutes() + 30 * i);
