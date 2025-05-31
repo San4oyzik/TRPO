@@ -5,17 +5,16 @@ const Service = require('../models/serviceSchema');
 const createAppointment = async (req, res) => {
   try {
     const { clientId, employeeId, services: serviceIds, date } = req.body;
+
     if (!Array.isArray(serviceIds) || serviceIds.length === 0) {
       return res.status(400).json({ error: 'Необходимо указать хотя бы одну услугу' });
     }
 
-    // Подгружаем данные по выбранным услугам
     const servicesData = await Service.find({ _id: { $in: serviceIds } });
     if (servicesData.length !== serviceIds.length) {
       return res.status(400).json({ error: 'Одна или несколько услуг не найдены' });
     }
 
-    // Формируем массив services и вычисляем общие показатели
     const services = servicesData.map(s => ({
       serviceId: s._id,
       duration: s.duration,
@@ -34,7 +33,7 @@ const createAppointment = async (req, res) => {
     });
 
     await appointment.save();
-    // Подгружаем связанные документы для ответа
+
     await appointment
       .populate('clientId', 'fullName email')
       .populate('employeeId', 'fullName email')
@@ -48,7 +47,7 @@ const createAppointment = async (req, res) => {
   }
 };
 
-// Получение всех записей (по фильтру)
+// Получение всех записей
 const getAppointments = async (req, res) => {
   try {
     const filter = {};
@@ -73,20 +72,27 @@ const getAppointments = async (req, res) => {
 const updateAppointment = async (req, res) => {
   try {
     const updateData = {};
+
     if (req.body.date) {
       updateData.date = req.body.date;
     }
+
+    if (req.body.status) {
+      updateData.status = req.body.status; // ← добавь эту строку, если её ещё нет
+    }
+
     if (Array.isArray(req.body.services)) {
-      // Если меняются услуги — перезаписываем services, totalDuration и totalPrice
       const servicesData = await Service.find({ _id: { $in: req.body.services } });
       if (servicesData.length !== req.body.services.length) {
         return res.status(400).json({ error: 'Одна или несколько услуг не найдены' });
       }
+
       const services = servicesData.map(s => ({
         serviceId: s._id,
         duration: s.duration,
         price: s.price
       }));
+
       updateData.services = services;
       updateData.totalDuration = services.reduce((sum, s) => sum + s.duration, 0);
       updateData.totalPrice = services.reduce((sum, s) => sum + s.price, 0);
@@ -112,7 +118,7 @@ const updateAppointment = async (req, res) => {
   }
 };
 
-// Отмена записи (смена статуса на cancelled)
+// Отмена записи
 const cancelAppointment = async (req, res) => {
   try {
     const appointment = await Appointment.findByIdAndUpdate(

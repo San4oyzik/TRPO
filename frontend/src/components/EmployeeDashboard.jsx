@@ -15,13 +15,11 @@ const EmployeeDashboard = () => {
   const employeeId = decoded?.id;
   const navigate = useNavigate();
 
-  // Logout
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/', { replace: true });
   };
 
-  // Fetch both active appointments and slots
   const fetchEvents = async () => {
     try {
       const [appointmentsRes, slotsRes] = await Promise.all([
@@ -29,35 +27,43 @@ const EmployeeDashboard = () => {
         axios.get(`http://localhost:8000/slots?employeeId=${employeeId}`, { headers })
       ]);
 
-      // Only include active appointments
-      const appointments = appointmentsRes.data.filter(a => a.status === 'active');
-      const slots = slotsRes.data;
+      const appointments = appointmentsRes.data.filter(a =>
+        ['active', 'completed'].includes(a.status)
+      );
 
-      // Map appointments using new schema
       const appointmentEvents = appointments.map(appt => {
         const start = new Date(appt.date);
         const end = new Date(start.getTime() + appt.totalDuration * 60000);
+
+        const clientName = appt.externalName || appt.clientId?.fullName || 'Неизвестно';
+        const clientPhone = appt.externalPhone || appt.clientId?.phone || '—';
+
         return {
           id: appt._id,
           title: `Запись: ${appt.services.map(s => s.serviceId.name).join(', ')}`,
           start,
           end,
-          backgroundColor: '#EF4444',
-          borderColor: '#B91C1C',
+          backgroundColor: appt.status === 'completed' ? '#3B82F6' : '#EF4444',
+          borderColor: appt.status === 'completed' ? '#1D4ED8' : '#B91C1C',
           editable: true,
           extendedProps: {
             type: 'appointment',
-            clientName: appt.clientId.fullName,
-            services: appt.services.map(s => ({ name: s.serviceId.name, duration: s.duration, price: s.price })),
+            status: appt.status,
+            clientName,
+            clientPhone,
+            services: appt.services.map(s => ({
+              name: s.serviceId.name,
+              duration: s.duration,
+              price: s.price
+            })),
             totalDuration: appt.totalDuration,
             totalPrice: appt.totalPrice
           }
         };
       });
 
-      // Map free slots
       const occupiedRanges = appointmentEvents.map(ev => [ev.start, ev.end]);
-      const slotEvents = slots
+      const slotEvents = slotsRes.data
         .filter(slot => {
           const slotStart = new Date(`${slot.date}T${slot.time}`);
           const slotEnd = new Date(slotStart.getTime() + 30 * 60000);
@@ -85,13 +91,11 @@ const EmployeeDashboard = () => {
     }
   };
 
-  // Handle drag/drop or resize
   const handleEventDrop = async info => {
     const evt = info.event;
-    const isAppt = evt.extendedProps.type === 'appointment';
     const newDate = evt.start;
     try {
-      if (isAppt) {
+      if (evt.extendedProps.type === 'appointment') {
         await axios.put(
           `http://localhost:8000/appointments/${evt.id}`,
           { date: newDate.toISOString() },
@@ -113,12 +117,14 @@ const EmployeeDashboard = () => {
     }
   };
 
-  // Click handler: show details or delete slot
   const handleEventClick = info => {
     const evt = info.event;
     if (evt.extendedProps.type === 'appointment') {
       setSelectedEvent({
+        id: evt.id,
+        status: evt.extendedProps.status,
         clientName: evt.extendedProps.clientName,
+        clientPhone: evt.extendedProps.clientPhone,
         services: evt.extendedProps.services,
         totalDuration: evt.extendedProps.totalDuration,
         totalPrice: evt.extendedProps.totalPrice
@@ -132,7 +138,6 @@ const EmployeeDashboard = () => {
     }
   };
 
-  // Generate slots when selecting
   const handleSlotGenerate = async selectInfo => {
     const cal = selectInfo.view.calendar;
     cal.unselect();
@@ -157,22 +162,41 @@ const EmployeeDashboard = () => {
     }
   };
 
+  const handleMarkAsCompleted = async () => {
+    try {
+      await axios.put(`http://localhost:8000/appointments/${selectedEvent.id}`, {
+        status: 'completed'
+      }, { headers });
+      fetchEvents();
+      setSelectedEvent(null);
+    } catch (e) {
+      console.error('Ошибка при установке статуса completed:', e);
+    }
+  };
+
+  const handleCancelAppointment = async () => {
+    try {
+      await axios.delete(`http://localhost:8000/appointments/${selectedEvent.id}`, { headers });
+      fetchEvents();
+      setSelectedEvent(null);
+    } catch (e) {
+      console.error('Ошибка при отмене записи:', e);
+    }
+  };
+
   useEffect(() => {
     if (!token) {
       navigate('/', { replace: true });
       return;
     }
 
-    // Initial fetch and polling
     fetchEvents();
     const intervalId = setInterval(fetchEvents, 15000);
     return () => clearInterval(intervalId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="p-4">
-      {/* Logout button */}
       <div className="flex justify-end mb-4">
         <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
           Выйти
@@ -180,6 +204,7 @@ const EmployeeDashboard = () => {
       </div>
 
       <h1 className="text-2xl font-bold mb-4">Календарь сотрудника</h1>
+
       <FullCalendar
         plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
         initialView="timeGridWeek"
@@ -200,12 +225,12 @@ const EmployeeDashboard = () => {
         slotLabelInterval="00:30:00"
       />
 
-      {/* Selected appointment details */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">Детали записи</h2>
             <p><strong>Клиент:</strong> {selectedEvent.clientName}</p>
+            <p><strong>Телефон:</strong> {selectedEvent.clientPhone}</p>
             <div className="mt-2">
               <strong>Услуги:</strong>
               <ul className="list-disc list-inside">
@@ -215,9 +240,22 @@ const EmployeeDashboard = () => {
               </ul>
             </div>
             <p className="mt-2"><strong>Итого стоимость:</strong> {selectedEvent.totalPrice} ₽</p>
-            <button onClick={() => setSelectedEvent(null)} className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-              Закрыть
-            </button>
+            <p className="mt-2"><strong>Статус:</strong> {selectedEvent.status}</p>
+            <div className="mt-4 flex gap-3 flex-wrap">
+              {selectedEvent.status === 'active' && (
+                <>
+                  <button onClick={handleMarkAsCompleted} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Отметить как пришёл
+                  </button>
+                  <button onClick={handleCancelAppointment} className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                    Отменить
+                  </button>
+                </>
+              )}
+              <button onClick={() => setSelectedEvent(null)} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                Закрыть
+              </button>
+            </div>
           </div>
         </div>
       )}

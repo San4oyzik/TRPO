@@ -13,6 +13,11 @@ const BookingForm = () => {
   const [availableTimes, setAvailableTimes] = useState([]);
   const [selectedTime, setSelectedTime] = useState('');
   const [message, setMessage] = useState('');
+
+  const [isExternal, setIsExternal] = useState(false);
+  const [externalName, setExternalName] = useState('');
+  const [externalPhone, setExternalPhone] = useState('');
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -100,40 +105,36 @@ const BookingForm = () => {
         let times = matchedKey ? res.data.slots[matchedKey] : [];
 
         if (selectedServices.length) {
-          // const slotsNeeded = Math.ceil(totalDur / 30);
-          // const slotSet = new Set(times);
           times = times.filter(t => {
-  const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
-  const start = new Date(`${selectedDate}T${t}`);
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            const start = new Date(`${selectedDate}T${t}`);
 
-  if (selectedDate === todayStr && start <= now) {
-    return false; // не показываем прошедшее время на сегодня
-  }
+            if (selectedDate === todayStr && start <= now) return false;
 
-  const totalDur = selectedServices.reduce((sum, sid) => {
-    const svc = rawServices.find(s => String(s._id) === sid);
-    return sum + (svc?.duration || 0);
-  }, 0);
-  const slotsNeeded = Math.ceil(totalDur / 30);
-  const slotSet = new Set(times);
-  for (let i = 1; i < slotsNeeded; i++) {
-    const next = new Date(start);
-    next.setMinutes(next.getMinutes() + 30 * i);
-    const nextStr = next.toTimeString().slice(0, 5);
-    if (!slotSet.has(nextStr)) {
-      return false;
-    }
-  }
-  return true;
-});
+            const totalDur = selectedServices.reduce((sum, sid) => {
+              const svc = rawServices.find(s => String(s._id) === sid);
+              return sum + (svc?.duration || 0);
+            }, 0);
+            const slotsNeeded = Math.ceil(totalDur / 30);
+            const slotSet = new Set(times);
+            for (let i = 1; i < slotsNeeded; i++) {
+              const next = new Date(start);
+              next.setMinutes(next.getMinutes() + 30 * i);
+              const nextStr = next.toTimeString().slice(0, 5);
+              if (!slotSet.has(nextStr)) return false;
+            }
+            return true;
+          });
         }
+
         times.sort((a, b) => {
-  const [h1, m1] = a.split(':').map(Number);
-  const [h2, m2] = b.split(':').map(Number);
-  return h1 * 60 + m1 - (h2 * 60 + m2);
-});
-setAvailableTimes(times);
+          const [h1, m1] = a.split(':').map(Number);
+          const [h2, m2] = b.split(':').map(Number);
+          return h1 * 60 + m1 - (h2 * 60 + m2);
+        });
+
+        setAvailableTimes(times);
       } catch (e) {
         console.error('Ошибка загрузки времени:', e);
         setMessage('Не удалось загрузить время');
@@ -144,27 +145,35 @@ setAvailableTimes(times);
 
   const handleSubmit = async e => {
     e.preventDefault();
-    if (!selectedServices.length) {
-      setMessage('Выберите услуги');
-      return;
+    if (!selectedServices.length) return setMessage('Выберите услуги');
+    if (!selectedEmployee || !selectedDate || !selectedTime) return setMessage('Заполните все поля');
+
+    if (isExternal && (!externalName.trim() || !externalPhone.trim())) {
+      return setMessage('Введите имя и телефон клиента');
     }
-    if (!selectedEmployee || !selectedDate || !selectedTime) {
-      setMessage('Заполните все поля');
-      return;
-    }
+
     const token = localStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     const clientId = JSON.parse(atob(token.split('.')[1])).id;
+
     try {
       const dt = new Date(`${selectedDate}T${selectedTime}`);
       await axios.post(
         'http://localhost:8000/appointments',
-        { clientId, employeeId: selectedEmployee, services: selectedServices, date: dt.toISOString() },
+        {
+          clientId,
+          employeeId: selectedEmployee,
+          services: selectedServices,
+          date: dt.toISOString(),
+          ...(isExternal ? { externalName, externalPhone } : {})
+        },
         { headers }
       );
       setMessage('Успешно записан!');
       setSelectedServices([]);
       setSelectedTime('');
+      setExternalName('');
+      setExternalPhone('');
     } catch (e) {
       console.error('Ошибка при записи:', e);
       setMessage('Ошибка при записи');
@@ -175,8 +184,51 @@ setAvailableTimes(times);
     <div className="max-w-xl mx-auto p-4">
       <h2 className="text-2xl font-bold mb-4">Запись на услугу</h2>
       {message && <p className="mb-4 text-red-600">{message}</p>}
+
+      {/* Выбор типа записи */}
+      <div className="flex gap-4 mb-4">
+        <button
+          type="button"
+          className={`px-4 py-2 rounded ${!isExternal ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}
+          onClick={() => setIsExternal(false)}
+        >
+          Записаться самому
+        </button>
+        <button
+          type="button"
+          className={`px-4 py-2 rounded ${isExternal ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}
+          onClick={() => setIsExternal(true)}
+        >
+          Записать другого человека
+        </button>
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Services */}
+        {/* Данные внешнего клиента */}
+        {isExternal && (
+          <>
+            <div>
+              <label className="block mb-1 font-medium">ФИО клиента</label>
+              <input
+                type="text"
+                value={externalName}
+                onChange={e => setExternalName(e.target.value)}
+                className="w-full border p-2 rounded"
+              />
+            </div>
+            <div>
+              <label className="block mb-1 font-medium">Телефон клиента</label>
+              <input
+                type="tel"
+                value={externalPhone}
+                onChange={e => setExternalPhone(e.target.value)}
+                className="w-full border p-2 rounded"
+              />
+            </div>
+          </>
+        )}
+
+        {/* Услуги */}
         <div>
           <label className="block mb-1 font-medium">Услуги</label>
           <ul className="space-y-1">
@@ -199,7 +251,8 @@ setAvailableTimes(times);
             })}
           </ul>
         </div>
-        {/* Employee */}
+
+        {/* Сотрудник */}
         {selectedServices.length > 0 && (
           <div>
             <label className="block mb-1 font-medium">Сотрудник</label>
@@ -214,12 +267,10 @@ setAvailableTimes(times);
                 <option key={emp._id} value={String(emp._id)}>{emp.fullName}</option>
               ))}
             </select>
-            {filteredEmployees.length === 0 && (
-              <p className="text-red-600 mt-2">Нет мастеров, оказывающих выбранные услуги</p>
-            )}
           </div>
         )}
-        {/* Date */}
+
+        {/* Дата */}
         {availableDates.length > 0 && (
           <div>
             <label className="block mb-1 font-medium">Дата</label>
@@ -233,7 +284,8 @@ setAvailableTimes(times);
             </select>
           </div>
         )}
-        {/* Time */}
+
+        {/* Время */}
         {availableTimes.length > 0 && (
           <div>
             <label className="block mb-1 font-medium">Время</label>
@@ -247,9 +299,16 @@ setAvailableTimes(times);
             </select>
           </div>
         )}
+
         <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded">Записаться</button>
       </form>
-      <button onClick={() => navigate('/user-dashboard')} className="mt-4 bg-gray-500 text-white py-2 rounded">Назад</button>
+
+      <button
+        onClick={() => navigate('/user-dashboard')}
+        className="mt-4 bg-gray-500 text-white py-2 rounded"
+      >
+        Назад
+      </button>
     </div>
   );
 };

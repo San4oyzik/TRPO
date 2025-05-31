@@ -42,7 +42,9 @@ const AppointmentSchema = new mongoose.Schema({
     type: String,
     enum: ['active', 'cancelled', 'completed'],
     default: 'active'
-  }
+  },
+  externalName: { type: String },
+  externalPhone: { type: String }
 }, {
   timestamps: true
 });

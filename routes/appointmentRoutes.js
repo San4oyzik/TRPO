@@ -1,11 +1,11 @@
-// routes/appointmentRoutes.js
 const express = require('express');
 const router = express.Router();
 const {
   createAppointment,
   getAppointments,
   updateAppointment,
-  cancelAppointment
+  cancelAppointment,
+  updateStatus
 } = require('../services/appointmentService');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { MESSAGE } = require('../const');
@@ -30,23 +30,21 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Создание записи на несколько услуг
+// Создание записи на несколько услуг (в том числе другого человека)
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const clientId = req.user._id;
-    const { employeeId, services: serviceIds, date } = req.body;
+    const { employeeId, services: serviceIds, date, externalName, externalPhone } = req.body;
 
     if (!Array.isArray(serviceIds) || serviceIds.length === 0) {
       return res.status(400).send({ error: 'Нужно указать хотя бы одну услугу' });
     }
 
-    // Подгружаем выбранные услуги
     const servicesData = await Service.find({ _id: { $in: serviceIds } });
     if (servicesData.length !== serviceIds.length) {
       return res.status(400).send({ error: 'Одна или несколько услуг не найдены' });
     }
 
-    // Составляем booking times по суммарной длительности
     let totalDuration = 0;
     servicesData.forEach(s => {
       totalDuration += s.duration;
@@ -55,7 +53,6 @@ router.post('/', authMiddleware, async (req, res) => {
     const start = new Date(date);
     const end = addMinutes(start, totalDuration);
 
-    // Формируем slotTimes с шагом 30 минут
     const bookedTimes = [];
     let current = new Date(start);
     while (current < end) {
@@ -63,15 +60,15 @@ router.post('/', authMiddleware, async (req, res) => {
       current = addMinutes(current, 30);
     }
 
-    // Создаем запись (в сервисе создаAppointment создаёт документ с services, totalDuration, totalPrice и т.д.)
     const newAppointment = await createAppointment({
       clientId,
       employeeId,
       services: serviceIds,
-      date
+      date,
+      externalName,
+      externalPhone
     });
 
-    // Помечаем занятые слоты
     const slotDate = format(start, 'yyyy-MM-dd');
     const updateResult = await Slot.updateMany(
       {
@@ -104,7 +101,18 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Отмена записи (освобождаем все слоты по totalDuration)
+// Обновление статуса записи
+router.patch('/:id/status', authMiddleware, async (req, res) => {
+  try {
+    const result = await updateStatus(req.params.id, req.body.status);
+    res.send(result);
+  } catch (e) {
+    console.error('Ошибка при обновлении статуса записи:', e.message);
+    res.status(500).send({ error: e.message });
+  }
+});
+
+// Отмена записи и освобождение слотов
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id).populate('services.serviceId');
@@ -114,7 +122,6 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     const totalDuration = appointment.totalDuration || appointment.services.reduce((sum, s) => sum + s.duration, 0);
     const end = addMinutes(start, totalDuration);
 
-    // Формируем список времён для освобождения
     const timesToFree = [];
     let current = new Date(start);
     while (current < end) {
@@ -132,9 +139,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       { isBooked: false }
     );
 
-    // Отменяем/удаляем запись
     await cancelAppointment(req.params.id);
-
     res.send({ message: MESSAGE.APPOINTMENT_CANCELLED });
   } catch (e) {
     console.error(e);
