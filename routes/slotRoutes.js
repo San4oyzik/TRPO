@@ -5,7 +5,7 @@ const Slot = require('../models/slotSchema');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { addMinutes, format } = require('date-fns');
 
-// Генерация слотов (например: шаг 30 минут с 10:00 до 18:00)
+// 🔄 Генерация слотов
 router.post('/generate', authMiddleware, async (req, res) => {
   const { employeeId, date, startTime, endTime } = req.body;
   const roles = req.user.roles || [];
@@ -43,7 +43,18 @@ router.post('/generate', authMiddleware, async (req, res) => {
   }
 });
 
-// Получение доступности по слотам
+// ✅ Получение всех слотов всех сотрудников (новый эндпоинт)
+router.get('/all', authMiddleware, async (req, res) => {
+  try {
+    const slots = await Slot.find({});
+    res.json(slots);
+  } catch (err) {
+    console.error('Ошибка при получении всех слотов:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// 🔍 Получение доступных слотов по employeeId
 router.get('/availability', authMiddleware, async (req, res) => {
   const { employeeId } = req.query;
 
@@ -73,8 +84,7 @@ router.get('/availability', authMiddleware, async (req, res) => {
   }
 });
 
-
-// Получение всех слотов конкретного сотрудника
+// Получение слотов конкретного сотрудника
 router.get('/', authMiddleware, async (req, res) => {
   const { employeeId } = req.query;
 

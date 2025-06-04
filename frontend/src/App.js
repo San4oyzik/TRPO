@@ -5,10 +5,17 @@ import {
   Route,
   useNavigate
 } from "react-router-dom";
-import BookingForm from "./components/BookingForm";
+
+import BookingForm from "./pages/BookingPage";
 import PrivateRoute from "./privateRoute";
-import EmployeeDashboard from "./components/EmployeeDashboard";
-import UserDashboard from "./components/UserDashboard"; // добавлен
+import EmployeeDashboard from "./pages/EmployeeDashboard";
+import UserDashboard from "./pages/UserDashboard";
+import AdminDashboard from "./pages/Dashboard"; // это админская панель
+import EmployeeSchedule from "./pages/EmployeeSchedule";
+import AllAppointments from "./pages/AllAppointments";
+import FinanceReport from "./pages/FinanceReport";
+import ClientList from "./pages/ClientList";
+import ServiceManager from "./pages/ServiceManager";
 
 function Form() {
   const [mode, setMode] = useState("register");
@@ -46,9 +53,12 @@ function Form() {
         setMessage("Успешный вход!");
 
         const decoded = JSON.parse(atob(data.token.split('.')[1]));
+        localStorage.setItem("user", JSON.stringify(decoded));
         const roles = decoded.roles || [];
 
-        if (roles.includes('employee')) {
+        if (roles.includes('admin')) {
+          navigate("/dashboard");
+        } else if (roles.includes('employee')) {
           navigate("/employee-calendar");
         } else {
           navigate("/user-dashboard");
@@ -93,16 +103,14 @@ function Form() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           {mode === "register" && (
-            <>
-              <input
-                type="text"
-                name="fullName"
-                placeholder="ФИО"
-                onChange={handleChange}
-                className="p-2 border border-gray-300 rounded-lg"
-                required
-              />
-            </>
+            <input
+              type="text"
+              name="fullName"
+              placeholder="ФИО"
+              onChange={handleChange}
+              className="p-2 border border-gray-300 rounded-lg"
+              required
+            />
           )}
           <input
             type="tel"
@@ -136,27 +144,6 @@ function Form() {
   );
 }
 
-function Dashboard() {
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/");
-  };
-
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 text-xl text-gray-800 gap-4">
-      <h1 className="font-semibold">Добро пожаловать 👋</h1>
-      <button
-        onClick={handleLogout}
-        className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
-      >
-        Выйти
-      </button>
-    </div>
-  );
-}
-
 export default function App() {
   return (
     <Router>
@@ -167,14 +154,6 @@ export default function App() {
           element={
             <PrivateRoute>
               <BookingForm />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute>
-              <Dashboard />
             </PrivateRoute>
           }
         />
@@ -194,6 +173,22 @@ export default function App() {
             </PrivateRoute>
           }
         />
+
+        {/* Админский Dashboard с вложенными маршрутами */}
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
+              <AdminDashboard />
+            </PrivateRoute>
+          }
+        >
+          <Route path="schedule" element={<EmployeeSchedule />} />
+          <Route path="appointments" element={<AllAppointments />} />
+          <Route path="finance" element={<FinanceReport />} />
+          <Route path="clients" element={<ClientList />} />
+          <Route path="services" element={<ServiceManager />} />
+        </Route>
       </Routes>
     </Router>
   );

@@ -14,7 +14,13 @@ const ServiceSchema = new mongoose.Schema({
   price: {
     type: Number,
     required: true,
-  }
+  },
+  employeeIds: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+  ],
 }, {
   timestamps: true
 });
