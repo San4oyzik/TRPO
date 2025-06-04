@@ -6,7 +6,8 @@ import interactionPlugin from '@fullcalendar/interaction';
 import axios from 'axios';
 
 const COLORS = [
-  '#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#F43F5E'
+  '#D0E6E1', '#E9D5EC', '#FBE8C7', '#DBEAFE',
+  '#FBD5D5', '#EAE4D3', '#FDE68A', '#C4B5FD'
 ];
 
 const EmployeeSchedule = () => {
@@ -25,7 +26,7 @@ const EmployeeSchedule = () => {
 
   const getColorByEmployee = (id) => {
     const index = employees.findIndex(e => e._id === id);
-    return COLORS[index % COLORS.length];
+    return COLORS[index % COLORS.length] || '#E5E7EB'; // fallback серый
   };
 
   const fetchEvents = async (employeeId = '') => {
@@ -50,7 +51,6 @@ const EmployeeSchedule = () => {
       const appointmentEvents = appointments.map(appt => {
         const start = new Date(appt.date);
         const end = new Date(start.getTime() + appt.totalDuration * 60000);
-        const employeeColor = getColorByEmployee(appt.employeeId);
         const clientName = appt.externalName || appt.clientId?.fullName || 'Неизвестно';
         const clientPhone = appt.externalPhone || appt.clientId?.phone || '—';
 
@@ -59,8 +59,8 @@ const EmployeeSchedule = () => {
           title: `Запись: ${clientName}`,
           start,
           end,
-          backgroundColor: appt.status === 'completed' ? '#3B82F6' : '#EF4444',
-          borderColor: appt.status === 'completed' ? '#1D4ED8' : '#B91C1C',
+          backgroundColor: '#EF4444',
+          borderColor: '#B91C1C',
           extendedProps: {
             type: 'appointment',
             employeeId: appt.employeeId,
@@ -96,7 +96,7 @@ const EmployeeSchedule = () => {
             start,
             end: end.toISOString(),
             backgroundColor: color,
-            borderColor: '#333',
+            borderColor: '#888',
             extendedProps: {
               type: 'slot',
               employeeId: slot.employeeId
@@ -142,13 +142,18 @@ const EmployeeSchedule = () => {
   };
 
   useEffect(() => {
-    fetchEmployees();
-    fetchEvents();
+    const init = async () => {
+      await fetchEmployees();
+      await fetchEvents();
+    };
+    init();
   }, []);
 
   useEffect(() => {
-    fetchEvents(selectedEmployeeId);
-  }, [selectedEmployeeId]);
+    if (employees.length > 0) {
+      fetchEvents(selectedEmployeeId);
+    }
+  }, [selectedEmployeeId, employees]);
 
   return (
     <div className="p-4">
