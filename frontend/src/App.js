@@ -1,10 +1,18 @@
 import { useState } from "react";
-import { BrowserRouter as Router, Route, Routes, useNavigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useNavigate
+} from "react-router-dom";
+import BookingForm from "./components/BookingForm";
 import PrivateRoute from "./privateRoute";
+import EmployeeDashboard from "./components/EmployeeDashboard";
+import UserDashboard from "./components/UserDashboard"; // добавлен
 
 function Form() {
   const [mode, setMode] = useState("register");
-  const [form, setForm] = useState({ username: "", email: "", password: "" });
+  const [form, setForm] = useState({ fullName: "", phone: "", password: "" });
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
@@ -22,7 +30,7 @@ function Form() {
     const payload =
       mode === "register"
         ? form
-        : { email: form.email, password: form.password };
+        : { phone: form.phone, password: form.password };
 
     try {
       const res = await fetch(url, {
@@ -36,7 +44,15 @@ function Form() {
       if (data.token) {
         localStorage.setItem("token", data.token);
         setMessage("Успешный вход!");
-        navigate("/dashboard");
+
+        const decoded = JSON.parse(atob(data.token.split('.')[1]));
+        const roles = decoded.roles || [];
+
+        if (roles.includes('employee')) {
+          navigate("/employee-calendar");
+        } else {
+          navigate("/user-dashboard");
+        }
       } else {
         setMessage(data.message || data.error || "Успешно");
       }
@@ -77,19 +93,21 @@ function Form() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           {mode === "register" && (
-            <input
-              type="text"
-              name="username"
-              placeholder="Имя"
-              onChange={handleChange}
-              className="p-2 border border-gray-300 rounded-lg"
-              required
-            />
+            <>
+              <input
+                type="text"
+                name="fullName"
+                placeholder="ФИО"
+                onChange={handleChange}
+                className="p-2 border border-gray-300 rounded-lg"
+                required
+              />
+            </>
           )}
           <input
-            type="email"
-            name="email"
-            placeholder="Email"
+            type="tel"
+            name="phone"
+            placeholder="Телефон"
             onChange={handleChange}
             className="p-2 border border-gray-300 rounded-lg"
             required
@@ -145,10 +163,34 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Form />} />
         <Route
+          path="/booking"
+          element={
+            <PrivateRoute>
+              <BookingForm />
+            </PrivateRoute>
+          }
+        />
+        <Route
           path="/dashboard"
           element={
             <PrivateRoute>
               <Dashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/employee-calendar"
+          element={
+            <PrivateRoute>
+              <EmployeeDashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/user-dashboard"
+          element={
+            <PrivateRoute>
+              <UserDashboard />
             </PrivateRoute>
           }
         />

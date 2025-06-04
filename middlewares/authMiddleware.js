@@ -1,15 +1,21 @@
 const jwt = require('jsonwebtoken');
+const { User } = require('../models/userSchema');
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   const token = req.header('Authorization');
-  if (!token) return res.status(401).send({ error: 'Доступ запрещен. Токен не найден' });
+  if (!token) return res.status(401).send({ error: 'Токен не найден' });
 
   try {
-    const decoded = jwt.verify(token.replace('Bearer ', ''), process.env.JWT_SECRET);
-    req.user = decoded;
+    const decoded = jwt.verify(token.replace('Bearer ', ''), process.env.JWT_SECRET || 'secret');
+
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(401).send({ error: 'Пользователь не найден' });
+
+    req.user = user;
     next();
   } catch (e) {
-    res.status(403).send({ error: 'Неверный или просроченный токен' });
+    console.error('authMiddleware error:', e.message);
+    res.status(403).send({ error: 'Неверный токен' });
   }
 };
 

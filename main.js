@@ -4,6 +4,12 @@ require('dotenv').config();
 const { MESSAGE, PORT } = require ('./const');
 const app = express();
 const userRoutes = require('./routes/userRoutes');
+const appointmentRoutes = require('./routes/appointmentRoutes');
+const serviceRoutes = require('./routes/serviceRoutes');
+const availabilityRoutes = require('./routes/availabilityRoutes');
+const slotRoutes = require('./routes/slotRoutes');
+
+
 
 app.use(express.json())
 
@@ -20,6 +26,11 @@ app.get('/', (req, res) => {
 })
 
 app.use('/user', userRoutes);
+app.use('/appointments', appointmentRoutes);
+app.use('/services', serviceRoutes);
+app.use('/availability', availabilityRoutes);
+app.use('/slots', slotRoutes);
+
 
 app.listen(PORT, () => {
     console.log(`Example app listening on port ${PORT}`);
