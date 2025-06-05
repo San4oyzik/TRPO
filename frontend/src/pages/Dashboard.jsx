@@ -1,13 +1,8 @@
 import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 
-console.log("LocalStorage User:", localStorage.getItem("user"));
-
-const user = JSON.parse(localStorage.getItem("user"));
-console.log("Parsed user object:", user);
-
+const user = JSON.parse(localStorage.getItem('user'));
 
 export default function Dashboard() {
-  const user = JSON.parse(localStorage.getItem('user'));
   const location = useLocation();
 
   if (!user || !user.roles.includes('admin')) {
@@ -18,25 +13,51 @@ export default function Dashboard() {
     );
   }
 
-  // если находимся ровно на /dashboard — редиректим на расписание
   if (location.pathname === '/dashboard') {
     return <Navigate to="/dashboard/schedule" replace />;
   }
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-64 bg-gray-100 p-6 shadow-md">
-        <h2 className="text-xl font-bold mb-4">Админ-панель</h2>
-        <nav className="flex flex-col space-y-3 text-gray-700">
-          <Link to="schedule" className="hover:text-blue-600">📅 Расписание сотрудников</Link>
-          <Link to="appointments" className="hover:text-blue-600">📋 Записи студии</Link>
-          <Link to="finance" className="hover:text-blue-600">💰 Финансовые показатели</Link>
-          <Link to="clients" className="hover:text-blue-600">🧍 Список клиентов</Link>
-          <Link to="services" className="hover:text-blue-600">🛠 Услуги</Link>
+    <div className="flex min-h-screen bg-[#f5f5f5] text-[#1f2937]">
+      {/* Левое меню */}
+      <aside className="w-64 bg-white p-6 shadow-md border-r border-gray-200">
+        <h2 className="text-xl font-bold mb-6 text-[#14532d]">Админ-панель</h2>
+        <nav className="flex flex-col space-y-4">
+          <Link
+            to="schedule"
+            className="hover:text-[#15803d] transition-colors duration-150"
+          >
+            📅 Расписание сотрудников
+          </Link>
+          <Link
+            to="appointments"
+            className="hover:text-[#15803d] transition-colors duration-150"
+          >
+            📋 Записи студии
+          </Link>
+          <Link
+            to="finance"
+            className="hover:text-[#15803d] transition-colors duration-150"
+          >
+            💰 Финансовые показатели
+          </Link>
+          <Link
+            to="clients"
+            className="hover:text-[#15803d] transition-colors duration-150"
+          >
+            🧍 Список клиентов
+          </Link>
+          <Link
+            to="services"
+            className="hover:text-[#15803d] transition-colors duration-150"
+          >
+            🛠 Услуги
+          </Link>
         </nav>
       </aside>
 
-      <main className="flex-1 p-8">
+      {/* Контент справа */}
+      <main className="flex-1 p-8 bg-[#fafafa]">
         <Outlet />
       </main>
     </div>

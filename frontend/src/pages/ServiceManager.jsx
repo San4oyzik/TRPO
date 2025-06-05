@@ -119,59 +119,63 @@ export default function ServiceManager() {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">Управление услугами</h2>
+    <div className="p-8 max-w-6xl mx-auto bg-[#f5f5f5] min-h-screen">
+      <h2 className="text-2xl font-bold mb-6 text-[#14532d]">Управление услугами</h2>
 
       <button
         onClick={openModal}
-        className="mb-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        className="mb-6 bg-[#14532d] text-white px-5 py-2 rounded hover:bg-[#15803d] transition"
       >
-        Добавить услугу
+        + Добавить услугу
       </button>
 
-      <table className="w-full border text-sm">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="border p-2">Название</th>
-            <th className="border p-2">Цена</th>
-            <th className="border p-2">Длительность</th>
-            <th className="border p-2">Описание</th>
-            <th className="border p-2">Сотрудники</th>
-            <th className="border p-2">Действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          {services.map((s) => (
-            <tr key={s._id}>
-              <td className="border p-2">{s.name}</td>
-              <td className="border p-2">{s.price} ₽</td>
-              <td className="border p-2">{s.duration} мин</td>
-              <td className="border p-2">{s.description || "-"}</td>
-              <td className="border p-2">{getEmployeeNames(s.employeeIds)}</td>
-              <td className="border p-2 space-x-2 text-center">
-                <button
-                  onClick={() => handleEdit(s)}
-                  className="px-2 py-1 bg-yellow-400 text-white rounded"
-                >
-                  ✏
-                </button>
-                <button
-                  onClick={() => handleDelete(s._id)}
-                  className="px-2 py-1 bg-red-500 text-white rounded"
-                >
-                  🗑
-                </button>
-              </td>
+      <div className="overflow-x-auto bg-white border border-gray-200 rounded shadow">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-gray-100 text-gray-700">
+            <tr>
+              <th className="p-3 border-b">Название</th>
+              <th className="p-3 border-b">Цена</th>
+              <th className="p-3 border-b">Длительность</th>
+              <th className="p-3 border-b">Описание</th>
+              <th className="p-3 border-b">Сотрудники</th>
+              <th className="p-3 border-b text-center">Действия</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {services.map((s) => (
+              <tr key={s._id} className="hover:bg-[#f9fafb]">
+                <td className="p-3 border-b">{s.name}</td>
+                <td className="p-3 border-b">{s.price} ₽</td>
+                <td className="p-3 border-b">{s.duration} мин</td>
+                <td className="p-3 border-b">{s.description || "-"}</td>
+                <td className="p-3 border-b">{getEmployeeNames(s.employeeIds)}</td>
+                <td className="p-3 border-b text-center space-y-2 flex flex-col items-center">
+                  <button
+                    onClick={() => handleEdit(s)}
+                    className="w-[120px] py-1 bg-yellow-400 text-black font-medium rounded hover:bg-yellow-500 transition"
+                    title="Редактировать услугу"
+                  >
+                    Редактировать
+                  </button>
+                  <button
+                    onClick={() => handleDelete(s._id)}
+                    className="w-[120px] py-1 bg-[#dc2626] text-white font-medium rounded hover:bg-red-700 transition"
+                    title="Удалить услугу"
+                  >
+                    Удалить
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* Модалка */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-semibold mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto border border-gray-200">
+            <h3 className="text-xl font-semibold mb-4 text-[#14532d]">
               {editingId ? "Редактировать услугу" : "Добавить услугу"}
             </h3>
 
@@ -182,7 +186,7 @@ export default function ServiceManager() {
                 value={form.name}
                 onChange={handleChange}
                 placeholder="Название"
-                className="w-full p-2 border rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#15803d]"
                 required
               />
               <input
@@ -191,7 +195,7 @@ export default function ServiceManager() {
                 value={form.price}
                 onChange={handleChange}
                 placeholder="Цена"
-                className="w-full p-2 border rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#15803d]"
                 required
               />
               <input
@@ -200,7 +204,7 @@ export default function ServiceManager() {
                 value={form.duration}
                 onChange={handleChange}
                 placeholder="Длительность (мин)"
-                className="w-full p-2 border rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#15803d]"
                 required
               />
               <textarea
@@ -208,12 +212,12 @@ export default function ServiceManager() {
                 value={form.description}
                 onChange={handleChange}
                 placeholder="Описание"
-                className="w-full p-2 border rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#15803d]"
               />
 
               <div>
                 <p className="font-medium mb-1">Привязка сотрудников:</p>
-                <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border p-2 rounded">
+                <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border border-gray-200 p-2 rounded">
                   {employees.map((emp) => (
                     <label key={emp._id} className="flex items-center gap-2 text-sm">
                       <input
@@ -238,7 +242,7 @@ export default function ServiceManager() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-4 py-2 bg-[#14532d] text-white rounded hover:bg-[#15803d]"
                 >
                   {editingId ? "Сохранить" : "Добавить"}
                 </button>
@@ -249,4 +253,5 @@ export default function ServiceManager() {
       )}
     </div>
   );
+
 }

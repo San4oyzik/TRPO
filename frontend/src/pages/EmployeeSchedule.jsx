@@ -96,6 +96,7 @@ const EmployeeSchedule = () => {
             start,
             end: end.toISOString(),
             backgroundColor: color,
+            textColor: '#1f2937',
             borderColor: '#888',
             extendedProps: {
               type: 'slot',
@@ -155,17 +156,19 @@ const EmployeeSchedule = () => {
     }
   }, [selectedEmployeeId, employees]);
 
-  return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Расписание сотрудников</h1>
+    return (
+    <div className="p-6 bg-[#f5f5f5] min-h-screen">
+      <h1 className="text-2xl font-bold mb-6 text-[#14532d]">Расписание сотрудников</h1>
 
-      <div className="mb-4">
-        <label htmlFor="employee" className="mr-2">Фильтр по сотруднику:</label>
+      <div className="mb-6">
+        <label htmlFor="employee" className="mr-2 font-medium text-gray-700">
+          Фильтр по сотруднику:
+        </label>
         <select
           id="employee"
           value={selectedEmployeeId}
           onChange={e => setSelectedEmployeeId(e.target.value)}
-          className="border p-2 rounded"
+          className="border border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#15803d] focus:border-[#15803d]"
         >
           <option value="">Все сотрудники</option>
           {employees.map(emp => (
@@ -174,30 +177,32 @@ const EmployeeSchedule = () => {
         </select>
       </div>
 
-      <FullCalendar
-        plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
-        initialView="timeGridWeek"
-        editable={false}
-        selectable
-        select={handleSlotGenerate}
-        events={events}
-        locale="ru"
-        height="auto"
-        slotMinTime="08:00:00"
-        slotMaxTime="21:00:00"
-        allDaySlot={false}
-        eventClick={handleEventClick}
-      />
+      <div className="bg-white p-4 rounded-md shadow border border-gray-200">
+        <FullCalendar
+          plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
+          initialView="timeGridWeek"
+          editable={false}
+          selectable
+          select={handleSlotGenerate}
+          events={events}
+          locale="ru"
+          height="auto"
+          slotMinTime="08:00:00"
+          slotMaxTime="21:00:00"
+          allDaySlot={false}
+          eventClick={handleEventClick}
+        />
+      </div>
 
       {selectedEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Детали записи</h2>
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md border border-gray-200">
+            <h2 className="text-xl font-bold mb-4 text-[#14532d]">Детали записи</h2>
             <p><strong>Клиент:</strong> {selectedEvent.clientName}</p>
             <p><strong>Телефон:</strong> {selectedEvent.clientPhone}</p>
             <div className="mt-2">
               <strong>Услуги:</strong>
-              <ul className="list-disc list-inside">
+              <ul className="list-disc list-inside text-gray-700">
                 {selectedEvent.services?.map((s, i) => (
                   <li key={i}>{s.name} — {s.duration} мин</li>
                 ))}
@@ -205,10 +210,10 @@ const EmployeeSchedule = () => {
             </div>
             <p className="mt-2"><strong>Итого:</strong> {selectedEvent.totalPrice} ₽</p>
             <p className="mt-2"><strong>Статус:</strong> {selectedEvent.status}</p>
-            <div className="mt-4 flex justify-end">
+            <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setSelectedEvent(null)}
-                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                className="bg-[#14532d] text-white px-4 py-2 rounded hover:bg-[#15803d]"
               >
                 Закрыть
               </button>

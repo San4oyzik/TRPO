@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 const BookingForm = () => {
   const [rawServices, setRawServices] = useState([]);
   const [rawEmployees, setRawEmployees] = useState([]);
-
   const [selectedServices, setSelectedServices] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [availableDates, setAvailableDates] = useState([]);
@@ -13,11 +12,9 @@ const BookingForm = () => {
   const [availableTimes, setAvailableTimes] = useState([]);
   const [selectedTime, setSelectedTime] = useState('');
   const [message, setMessage] = useState('');
-
   const [isExternal, setIsExternal] = useState(false);
   const [externalName, setExternalName] = useState('');
   const [externalPhone, setExternalPhone] = useState('');
-
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -50,7 +47,6 @@ const BookingForm = () => {
 
   const filteredEmployees = useMemo(() => {
     if (!selectedServices.length) return rawEmployees;
-
     return rawEmployees.filter((emp) => {
       const serviceIds = (emp.services || []).map((s) =>
         typeof s === 'object' ? String(s._id) : String(s)
@@ -107,9 +103,7 @@ const BookingForm = () => {
             const now = new Date();
             const todayStr = now.toISOString().split('T')[0];
             const start = new Date(`${selectedDate}T${t}`);
-
             if (selectedDate === todayStr && start <= now) return false;
-
             const totalDur = selectedServices.reduce((sum, sid) => {
               const svc = rawServices.find((s) => String(s._id) === sid);
               return sum + (svc?.duration || 0);
@@ -142,62 +136,69 @@ const BookingForm = () => {
   }, [selectedEmployee, selectedDate, selectedServices, rawServices]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedServices.length) return setMessage('Выберите услуги');
-    if (!selectedEmployee || !selectedDate || !selectedTime) return setMessage('Заполните все поля');
+  e.preventDefault();
+  if (!selectedServices.length) return setMessage('Выберите услуги');
+  if (!selectedEmployee || !selectedDate || !selectedTime) return setMessage('Заполните все поля');
+  if (isExternal && (!externalName.trim() || !externalPhone.trim())) {
+    return setMessage('Введите имя и телефон клиента');
+  }
 
-    if (isExternal && (!externalName.trim() || !externalPhone.trim())) {
-      return setMessage('Введите имя и телефон клиента');
-    }
+  const token = localStorage.getItem('token');
+  const headers = { Authorization: `Bearer ${token}` };
+  const clientId = JSON.parse(atob(token.split('.')[1])).id;
 
-    const token = localStorage.getItem('token');
-    const headers = { Authorization: `Bearer ${token}` };
-    const clientId = JSON.parse(atob(token.split('.')[1])).id;
+  try {
+    const dt = new Date(`${selectedDate}T${selectedTime}`);
+    await axios.post(
+      'http://localhost:8000/appointments',
+      {
+        clientId,
+        employeeId: selectedEmployee,
+        services: selectedServices,
+        date: dt.toISOString(),
+        ...(isExternal ? { externalName, externalPhone } : {}),
+      },
+      { headers }
+    );
 
-    try {
-      const dt = new Date(`${selectedDate}T${selectedTime}`);
-      await axios.post(
-        'http://localhost:8000/appointments',
-        {
-          clientId,
-          employeeId: selectedEmployee,
-          services: selectedServices,
-          date: dt.toISOString(),
-          ...(isExternal ? { externalName, externalPhone } : {}),
-        },
-        { headers }
-      );
-      setMessage('Успешно записан!');
-      setSelectedServices([]);
-      setSelectedTime('');
-      setExternalName('');
-      setExternalPhone('');
-    } catch (e) {
-      console.error('Ошибка при записи:', e);
-      setMessage('Ошибка при записи');
-    }
-  };
+    // Автоматическое обновление страницы
+    window.location.reload();
+
+  } catch (e) {
+    console.error('Ошибка при записи:', e);
+    setMessage('Ошибка при записи');
+  }
+};
+
 
   return (
-    <div className="max-w-xl mx-auto p-4">
-      <h2 className="text-2xl font-bold mb-4">Запись на услугу</h2>
-      {message && <p className="mb-4 text-red-600">{message}</p>}
+    <div className="max-w-xl mx-auto p-6 bg-white rounded-xl shadow border border-gray-200 mt-8">
+      <h2 className="text-2xl font-bold mb-4 text-[#14532d]">Запись на услугу</h2>
 
-      {/* Выбор типа записи */}
-      <div className="flex gap-4 mb-4">
+      {message && (
+        <p className={`mb-4 text-sm font-medium ${message.toLowerCase().includes("успеш") ? "text-green-600" : "text-red-600"}`}>
+          {message}
+        </p>
+      )}
+
+      <div className="flex gap-4 mb-6">
         <button
           type="button"
-          className={`px-4 py-2 rounded ${!isExternal ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}
+          className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+            !isExternal ? "bg-[#14532d] text-white" : "bg-gray-200 text-gray-700"
+          }`}
           onClick={() => setIsExternal(false)}
         >
           Записаться самому
         </button>
         <button
           type="button"
-          className={`px-4 py-2 rounded ${isExternal ? 'bg-blue-600 text-white' : 'bg-gray-300'}`}
+          className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+            isExternal ? "bg-[#14532d] text-white" : "bg-gray-200 text-gray-700"
+          }`}
           onClick={() => setIsExternal(true)}
         >
-          Записать другого человека
+          Записать другого
         </button>
       </div>
 
@@ -210,7 +211,7 @@ const BookingForm = () => {
                 type="text"
                 value={externalName}
                 onChange={(e) => setExternalName(e.target.value)}
-                className="w-full border p-2 rounded"
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#15803d]"
               />
             </div>
             <div>
@@ -219,7 +220,7 @@ const BookingForm = () => {
                 type="tel"
                 value={externalPhone}
                 onChange={(e) => setExternalPhone(e.target.value)}
-                className="w-full border p-2 rounded"
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#15803d]"
               />
             </div>
           </>
@@ -252,7 +253,7 @@ const BookingForm = () => {
           <div>
             <label className="block mb-1 font-medium">Сотрудник</label>
             <select
-              className="w-full p-2 border rounded"
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#15803d]"
               value={selectedEmployee}
               onChange={(e) => setSelectedEmployee(e.target.value)}
               required
@@ -271,7 +272,7 @@ const BookingForm = () => {
           <div>
             <label className="block mb-1 font-medium">Дата</label>
             <select
-              className="w-full p-2 border rounded"
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#15803d]"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               required
@@ -289,7 +290,7 @@ const BookingForm = () => {
           <div>
             <label className="block mb-1 font-medium">Время</label>
             <select
-              className="w-full p-2 border rounded"
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#15803d]"
               value={selectedTime}
               onChange={(e) => setSelectedTime(e.target.value)}
               required
@@ -303,14 +304,17 @@ const BookingForm = () => {
           </div>
         )}
 
-        <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded">
+        <button
+          type="submit"
+          className="w-full bg-[#14532d] hover:bg-[#15803d] text-white py-3 rounded-md transition font-semibold"
+        >
           Записаться
         </button>
       </form>
 
       <button
         onClick={() => navigate('/user-dashboard')}
-        className="mt-4 bg-gray-500 text-white py-2 rounded"
+        className="mt-6 w-full bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 rounded-md transition"
       >
         Назад
       </button>
