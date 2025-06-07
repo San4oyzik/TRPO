@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 const BookingForm = () => {
   const [rawServices, setRawServices] = useState([]);
@@ -11,7 +12,6 @@ const BookingForm = () => {
   const [selectedDate, setSelectedDate] = useState('');
   const [availableTimes, setAvailableTimes] = useState([]);
   const [selectedTime, setSelectedTime] = useState('');
-  const [message, setMessage] = useState('');
   const [isExternal, setIsExternal] = useState(false);
   const [externalName, setExternalName] = useState('');
   const [externalPhone, setExternalPhone] = useState('');
@@ -29,8 +29,7 @@ const BookingForm = () => {
         setRawServices(servicesRes.data);
         setRawEmployees(usersRes.data.filter((u) => u.roles?.includes('employee')));
       } catch (e) {
-        console.error('Ошибка загрузки начальных данных:', e);
-        setMessage('Не удалось загрузить данные');
+        toast.error('Не удалось загрузить данные');
       }
     };
     fetchInitialData();
@@ -72,12 +71,13 @@ const BookingForm = () => {
         );
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const dates = res.data.availableDates.filter((d) => new Date(d) >= today);
+        const dates = res.data.availableDates
+          .filter((d) => new Date(d) >= today)
+          .sort((a, b) => new Date(a) - new Date(b));
         setAvailableDates(dates);
         setSelectedDate(dates[0] || '');
       } catch (e) {
-        console.error('Ошибка загрузки дат:', e);
-        setMessage('Не удалось загрузить даты');
+        toast.error('Не удалось загрузить даты');
       }
     };
     fetchDates();
@@ -128,58 +128,53 @@ const BookingForm = () => {
 
         setAvailableTimes(times);
       } catch (e) {
-        console.error('Ошибка загрузки времени:', e);
-        setMessage('Не удалось загрузить время');
+        toast.error('Не удалось загрузить время');
       }
     };
     fetchTimes();
   }, [selectedEmployee, selectedDate, selectedServices, rawServices]);
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!selectedServices.length) return setMessage('Выберите услуги');
-  if (!selectedEmployee || !selectedDate || !selectedTime) return setMessage('Заполните все поля');
-  if (isExternal && (!externalName.trim() || !externalPhone.trim())) {
-    return setMessage('Введите имя и телефон клиента');
-  }
+    e.preventDefault();
 
-  const token = localStorage.getItem('token');
-  const headers = { Authorization: `Bearer ${token}` };
-  const clientId = JSON.parse(atob(token.split('.')[1])).id;
+    if (!selectedServices.length || !selectedEmployee || !selectedDate || !selectedTime) {
+      toast.warning('Заполните все поля');
+      return;
+    }
 
-  try {
-    const dt = new Date(`${selectedDate}T${selectedTime}`);
-    await axios.post(
-      'http://localhost:8000/appointments',
-      {
-        clientId,
-        employeeId: selectedEmployee,
-        services: selectedServices,
-        date: dt.toISOString(),
-        ...(isExternal ? { externalName, externalPhone } : {}),
-      },
-      { headers }
-    );
+    if (isExternal && (!externalName.trim() || !externalPhone.trim())) {
+      toast.warning('Введите имя и телефон клиента');
+      return;
+    }
 
-    // Автоматическое обновление страницы
-    window.location.reload();
+    const token = localStorage.getItem('token');
+    const headers = { Authorization: `Bearer ${token}` };
+    const clientId = JSON.parse(atob(token.split('.')[1])).id;
 
-  } catch (e) {
-    console.error('Ошибка при записи:', e);
-    setMessage('Ошибка при записи');
-  }
-};
+    try {
+      const dt = new Date(`${selectedDate}T${selectedTime}`);
+      await axios.post(
+        'http://localhost:8000/appointments',
+        {
+          clientId,
+          employeeId: selectedEmployee,
+          services: selectedServices,
+          date: dt.toISOString(),
+          ...(isExternal ? { externalName, externalPhone } : {}),
+        },
+        { headers }
+      );
 
+      toast.success("Вы успешно записались!");
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (e) {
+      toast.error('Ошибка при записи');
+    }
+  };
 
   return (
     <div className="max-w-xl mx-auto p-6 bg-white rounded-xl shadow border border-gray-200 mt-8">
       <h2 className="text-2xl font-bold mb-4 text-[#14532d]">Запись на услугу</h2>
-
-      {message && (
-        <p className={`mb-4 text-sm font-medium ${message.toLowerCase().includes("успеш") ? "text-green-600" : "text-red-600"}`}>
-          {message}
-        </p>
-      )}
 
       <div className="flex gap-4 mb-6">
         <button

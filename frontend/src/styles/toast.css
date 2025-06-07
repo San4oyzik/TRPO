@@ -1,0 +1,17 @@
+/* styles/toast.css */
+.custom-toast {
+  border-left: 6px solid #22c55e;
+  background-color: #ecfdf5 !important;
+  color: #14532d !important;
+  font-weight: 500;
+  padding: 12px 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.custom-toast-body {
+  font-size: 14px;
+}
+
+.custom-toast-progress {
+  background: #22c55e !important;
+}

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
+import "../styles/toast.css";
 
 export default function ServiceManager() {
   const [services, setServices] = useState([]);
@@ -25,16 +27,24 @@ export default function ServiceManager() {
   }, []);
 
   const fetchServices = async () => {
-    const res = await fetch("http://localhost:8000/services", { headers });
-    const data = await res.json();
-    setServices(data);
+    try {
+      const res = await fetch("http://localhost:8000/services", { headers });
+      const data = await res.json();
+      setServices(data);
+    } catch (error) {
+      toast.error("Ошибка загрузки услуг");
+    }
   };
 
   const fetchEmployees = async () => {
-    const res = await fetch("http://localhost:8000/user", { headers });
-    const data = await res.json();
-    const employeesOnly = data.filter((u) => u.roles?.includes("employee"));
-    setEmployees(employeesOnly);
+    try {
+      const res = await fetch("http://localhost:8000/user", { headers });
+      const data = await res.json();
+      const employeesOnly = data.filter((u) => u.roles?.includes("employee"));
+      setEmployees(employeesOnly);
+    } catch (error) {
+      toast.error("Ошибка загрузки сотрудников");
+    }
   };
 
   const openModal = () => {
@@ -67,11 +77,16 @@ export default function ServiceManager() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Удалить услугу?")) return;
-    await fetch(`http://localhost:8000/services/${id}`, {
-      method: "DELETE",
-      headers,
-    });
-    fetchServices();
+    try {
+      await fetch(`http://localhost:8000/services/${id}`, {
+        method: "DELETE",
+        headers,
+      });
+      fetchServices();
+      toast.success("Услуга удалена");
+    } catch (error) {
+      toast.error("Ошибка при удалении услуги");
+    }
   };
 
   const handleChange = (e) => {
@@ -94,14 +109,19 @@ export default function ServiceManager() {
       ? `http://localhost:8000/services/${editingId}`
       : "http://localhost:8000/services";
 
-    await fetch(url, {
-      method,
-      headers,
-      body: JSON.stringify(form),
-    });
+    try {
+      await fetch(url, {
+        method,
+        headers,
+        body: JSON.stringify(form),
+      });
 
-    setIsModalOpen(false);
-    fetchServices();
+      setIsModalOpen(false);
+      fetchServices();
+      toast.success(editingId ? "Услуга обновлена" : "Услуга добавлена");
+    } catch (error) {
+      toast.error("Ошибка при сохранении услуги");
+    }
   };
 
   const getEmployeeNames = (list = []) => {
@@ -253,5 +273,4 @@ export default function ServiceManager() {
       )}
     </div>
   );
-
 }

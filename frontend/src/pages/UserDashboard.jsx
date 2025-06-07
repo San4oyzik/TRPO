@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import "../styles/toast.css";
 
 const UserDashboard = () => {
   const [appointments, setAppointments] = useState([]);
@@ -11,6 +13,7 @@ const UserDashboard = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    toast.info('Вы вышли из системы');
     navigate('/', { replace: true });
   };
 
@@ -22,7 +25,7 @@ const UserDashboard = () => {
       });
       setAppointments(res.data.sort((a, b) => new Date(a.date) - new Date(b.date)));
     } catch (e) {
-      console.error('Ошибка загрузки записей клиента:', e);
+      toast.error('Не удалось загрузить записи клиента');
     } finally {
       setLoading(false);
     }
@@ -31,14 +34,16 @@ const UserDashboard = () => {
   const cancelAppointment = async (id) => {
     try {
       await axios.delete(`http://localhost:8000/appointments/${id}`, { headers });
+      toast.success('Запись успешно отменена');
       await fetchAppointments();
     } catch (e) {
-      console.error('Ошибка отмены записи:', e);
+      toast.error('Ошибка при отмене записи');
     }
   };
 
   useEffect(() => {
     if (!token) {
+      toast.warning('Авторизуйтесь для доступа');
       navigate('/', { replace: true });
     } else {
       fetchAppointments();

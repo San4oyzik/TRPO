@@ -15,7 +15,6 @@ const EmployeeSchedule = () => {
   const [employees, setEmployees] = useState([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [selectedEvent, setSelectedEvent] = useState(null);
-
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -26,7 +25,7 @@ const EmployeeSchedule = () => {
 
   const getColorByEmployee = (id) => {
     const index = employees.findIndex(e => e._id === id);
-    return COLORS[index % COLORS.length] || '#E5E7EB'; // fallback серый
+    return COLORS[index % COLORS.length] || '#E5E7EB';
   };
 
   const fetchEvents = async (employeeId = '') => {
@@ -59,8 +58,9 @@ const EmployeeSchedule = () => {
           title: `Запись: ${clientName}`,
           start,
           end,
-          backgroundColor: '#EF4444',
-          borderColor: '#B91C1C',
+          backgroundColor: appt.status === 'completed' ? '#3B82F6' : '#EF4444',
+          borderColor: appt.status === 'completed' ? '#1D4ED8' : '#B91C1C',
+          textColor: '#fff',
           extendedProps: {
             type: 'appointment',
             employeeId: appt.employeeId,
@@ -138,25 +138,53 @@ const EmployeeSchedule = () => {
   const handleEventClick = (info) => {
     const evt = info.event;
     if (evt.extendedProps.type === 'appointment') {
-      setSelectedEvent(evt.extendedProps);
+      setSelectedEvent({
+        id: evt.id,
+        status: evt.extendedProps.status,
+        clientName: evt.extendedProps.clientName,
+        clientPhone: evt.extendedProps.clientPhone,
+        services: evt.extendedProps.services,
+        totalDuration: evt.extendedProps.totalDuration,
+        totalPrice: evt.extendedProps.totalPrice
+      });
+    }
+  };
+
+  const handleMarkAsCompleted = async () => {
+    try {
+      await axios.put(`http://localhost:8000/appointments/${selectedEvent.id}`, {
+        status: 'completed'
+      }, { headers });
+      setSelectedEvent(null);
+      fetchEvents(selectedEmployeeId);
+    } catch (e) {
+      console.error('Ошибка при установке статуса completed:', e);
+    }
+  };
+
+  const handleCancelAppointment = async () => {
+    try {
+      await axios.delete(`http://localhost:8000/appointments/${selectedEvent.id}`, { headers });
+      setSelectedEvent(null);
+      fetchEvents(selectedEmployeeId);
+    } catch (e) {
+      console.error('Ошибка при отмене записи:', e);
     }
   };
 
   useEffect(() => {
-    const init = async () => {
-      await fetchEmployees();
-      await fetchEvents();
-    };
-    init();
+    fetchEmployees().then(() => fetchEvents());
+    const interval = setInterval(() => fetchEvents(selectedEmployeeId), 15000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    if (employees.length > 0) {
+    if (employees.length) {
       fetchEvents(selectedEmployeeId);
     }
   }, [selectedEmployeeId, employees]);
 
-    return (
+  return (
     <div className="p-6 bg-[#f5f5f5] min-h-screen">
       <h1 className="text-2xl font-bold mb-6 text-[#14532d]">Расписание сотрудников</h1>
 
@@ -168,7 +196,7 @@ const EmployeeSchedule = () => {
           id="employee"
           value={selectedEmployeeId}
           onChange={e => setSelectedEmployeeId(e.target.value)}
-          className="border border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#15803d] focus:border-[#15803d]"
+          className="border border-gray-300 p-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#15803d]"
         >
           <option value="">Все сотрудники</option>
           {employees.map(emp => (
@@ -210,10 +238,26 @@ const EmployeeSchedule = () => {
             </div>
             <p className="mt-2"><strong>Итого:</strong> {selectedEvent.totalPrice} ₽</p>
             <p className="mt-2"><strong>Статус:</strong> {selectedEvent.status}</p>
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex gap-3 flex-wrap justify-end">
+              {selectedEvent.status === 'active' && (
+                <>
+                  <button
+                    onClick={handleMarkAsCompleted}
+                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  >
+                    Отметить как пришёл
+                  </button>
+                  <button
+                    onClick={handleCancelAppointment}
+                    className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+                  >
+                    Отменить
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => setSelectedEvent(null)}
-                className="bg-[#14532d] text-white px-4 py-2 rounded hover:bg-[#15803d]"
+                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
               >
                 Закрыть
               </button>
