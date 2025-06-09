@@ -15,6 +15,7 @@ const BookingForm = () => {
   const [isExternal, setIsExternal] = useState(false);
   const [externalName, setExternalName] = useState('');
   const [externalPhone, setExternalPhone] = useState('');
+  const [employeeConflict, setEmployeeConflict] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,7 +28,7 @@ const BookingForm = () => {
           axios.get('http://localhost:8000/user', { headers }),
         ]);
         setRawServices(servicesRes.data);
-        setRawEmployees(usersRes.data.filter((u) => u.roles?.includes('employee')));
+        setRawEmployees(usersRes.data.filter(u => u.roles?.includes('employee')));
       } catch (e) {
         toast.error('Не удалось загрузить данные');
       }
@@ -42,16 +43,21 @@ const BookingForm = () => {
     );
   };
 
-  const filteredServices = useMemo(() => rawServices, [rawServices]);
-
   const filteredEmployees = useMemo(() => {
-    if (!selectedServices.length) return rawEmployees;
-    return rawEmployees.filter((emp) => {
+    if (!selectedServices.length) {
+      setEmployeeConflict(false);
+      return rawEmployees;
+    }
+
+    const filtered = rawEmployees.filter((emp) => {
       const serviceIds = (emp.services || []).map((s) =>
         typeof s === 'object' ? String(s._id) : String(s)
       );
       return selectedServices.every((sid) => serviceIds.includes(sid));
     });
+
+    setEmployeeConflict(filtered.length === 0);
+    return filtered;
   }, [rawEmployees, selectedServices]);
 
   useEffect(() => {
@@ -61,6 +67,7 @@ const BookingForm = () => {
       setSelectedDate('');
       return;
     }
+
     const fetchDates = async () => {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
@@ -71,66 +78,87 @@ const BookingForm = () => {
         );
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+
         const dates = res.data.availableDates
           .filter((d) => new Date(d) >= today)
           .sort((a, b) => new Date(a) - new Date(b));
+
         setAvailableDates(dates);
         setSelectedDate(dates[0] || '');
       } catch (e) {
         toast.error('Не удалось загрузить даты');
       }
     };
+
     fetchDates();
   }, [selectedEmployee]);
 
   useEffect(() => {
     if (!selectedEmployee || !selectedDate) return;
+
     const fetchTimes = async () => {
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-      try {
-        const res = await axios.get(
-          `http://localhost:8000/slots/availability?employeeId=${selectedEmployee}`,
-          { headers }
-        );
+  const token = localStorage.getItem('token');
+  const headers = { Authorization: `Bearer ${token}` };
+  try {
+    const res = await axios.get(
+      `http://localhost:8000/slots/availability?employeeId=${selectedEmployee}`,
+      { headers }
+    );
 
-        const slotKeys = Object.keys(res.data.slots);
-        const matchedKey = slotKeys.find((k) => k.startsWith(selectedDate));
-        let times = matchedKey ? res.data.slots[matchedKey] : [];
+    const slotKeys = Object.keys(res.data.slots);
+    const matchedKey = slotKeys.find((k) => k.startsWith(selectedDate));
+    const allSlots = matchedKey ? res.data.slots[matchedKey] : [];
 
-        if (selectedServices.length) {
-          times = times.filter((t) => {
-            const now = new Date();
-            const todayStr = now.toISOString().split('T')[0];
-            const start = new Date(`${selectedDate}T${t}`);
-            if (selectedDate === todayStr && start <= now) return false;
-            const totalDur = selectedServices.reduce((sum, sid) => {
-              const svc = rawServices.find((s) => String(s._id) === sid);
-              return sum + (svc?.duration || 0);
-            }, 0);
-            const slotsNeeded = Math.ceil(totalDur / 30);
-            const slotSet = new Set(times);
-            for (let i = 1; i < slotsNeeded; i++) {
-              const next = new Date(start);
-              next.setMinutes(next.getMinutes() + 30 * i);
-              const nextStr = next.toTimeString().slice(0, 5);
-              if (!slotSet.has(nextStr)) return false;
-            }
-            return true;
-          });
-        }
+    if (!allSlots.length) {
+      setAvailableTimes([]);
+      return;
+    }
 
-        times.sort((a, b) => {
-          const [h1, m1] = a.split(':').map(Number);
-          const [h2, m2] = b.split(':').map(Number);
-          return h1 * 60 + m1 - (h2 * 60 + m2);
-        });
+    const now = new Date();
+    now.setSeconds(0);
+    now.setMilliseconds(0);
+    const todayStr = now.toISOString().split('T')[0];
 
-        setAvailableTimes(times);
-      } catch (e) {
-        toast.error('Не удалось загрузить время');
+    const totalDur = selectedServices.reduce((sum, sid) => {
+      const svc = rawServices.find((s) => String(s._id) === sid);
+      return sum + (svc?.duration || 0);
+    }, 0);
+
+    const slotsNeeded = Math.ceil(totalDur / 30);
+    const slotSet = new Set(allSlots);
+
+    const validStartTimes = allSlots.filter((t) => {
+      const start = new Date(`${selectedDate}T${t}`);
+      if (selectedDate === todayStr && start <= now) return false;
+
+      for (let i = 1; i < slotsNeeded; i++) {
+        const next = new Date(start);
+        next.setMinutes(next.getMinutes() + 30 * i);
+        const nextStr = next.toTimeString().slice(0, 5);
+        if (!slotSet.has(nextStr)) return false;
       }
-    };
+
+      return true;
+    });
+
+    validStartTimes.sort((a, b) => {
+      const [h1, m1] = a.split(':').map(Number);
+      const [h2, m2] = b.split(':').map(Number);
+      return h1 * 60 + m1 - (h2 * 60 + m2);
+    });
+
+    setAvailableTimes(validStartTimes);
+    if (validStartTimes.length > 0) {
+      setSelectedTime(validStartTimes[0]);
+    } else {
+      setSelectedTime('');
+    }
+  } catch (e) {
+    toast.error('Не удалось загрузить время');
+  }
+};
+
+
     fetchTimes();
   }, [selectedEmployee, selectedDate, selectedServices, rawServices]);
 
@@ -165,7 +193,7 @@ const BookingForm = () => {
         { headers }
       );
 
-      toast.success("Вы успешно записались!");
+      toast.success('Вы успешно записались!');
       setTimeout(() => window.location.reload(), 2000);
     } catch (e) {
       toast.error('Ошибка при записи');
@@ -180,7 +208,7 @@ const BookingForm = () => {
         <button
           type="button"
           className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
-            !isExternal ? "bg-[#14532d] text-white" : "bg-gray-200 text-gray-700"
+            !isExternal ? 'bg-[#14532d] text-white' : 'bg-gray-200 text-gray-700'
           }`}
           onClick={() => setIsExternal(false)}
         >
@@ -189,7 +217,7 @@ const BookingForm = () => {
         <button
           type="button"
           className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
-            isExternal ? "bg-[#14532d] text-white" : "bg-gray-200 text-gray-700"
+            isExternal ? 'bg-[#14532d] text-white' : 'bg-gray-200 text-gray-700'
           }`}
           onClick={() => setIsExternal(true)}
         >
@@ -206,7 +234,7 @@ const BookingForm = () => {
                 type="text"
                 value={externalName}
                 onChange={(e) => setExternalName(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#15803d]"
+                className="w-full p-3 border border-gray-300 rounded-md"
               />
             </div>
             <div>
@@ -215,7 +243,7 @@ const BookingForm = () => {
                 type="tel"
                 value={externalPhone}
                 onChange={(e) => setExternalPhone(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#15803d]"
+                className="w-full p-3 border border-gray-300 rounded-md"
               />
             </div>
           </>
@@ -224,34 +252,38 @@ const BookingForm = () => {
         <div>
           <label className="block mb-1 font-medium">Услуги</label>
           <ul className="space-y-1">
-            {filteredServices.map((s) => {
-              const serviceId = String(s._id);
-              return (
-                <li key={serviceId}>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="mr-2"
-                      value={serviceId}
-                      checked={selectedServices.includes(serviceId)}
-                      onChange={() => toggleService(serviceId)}
-                    />
-                    {s.name} — {s.duration} мин
-                  </label>
-                </li>
-              );
-            })}
+            {rawServices.map((s) => (
+              <li key={s._id}>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    className="mr-2"
+                    value={s._id}
+                    checked={selectedServices.includes(String(s._id))}
+                    onChange={() => toggleService(String(s._id))}
+                  />
+                  {s.name} — {s.duration} мин
+                </label>
+              </li>
+            ))}
           </ul>
         </div>
+
+        {employeeConflict && (
+          <div className="bg-yellow-100 text-yellow-800 p-3 rounded-md mb-4 text-sm border border-yellow-300">
+            Вы выбрали услуги, которые выполняются разными мастерами. Пожалуйста, выберите меньшее количество услуг или одного мастера.
+          </div>
+        )}
 
         {selectedServices.length > 0 && (
           <div>
             <label className="block mb-1 font-medium">Сотрудник</label>
             <select
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#15803d]"
+              className="w-full p-3 border border-gray-300 rounded-md"
               value={selectedEmployee}
               onChange={(e) => setSelectedEmployee(e.target.value)}
               required
+              disabled={employeeConflict}
             >
               <option value="">Выберите мастера</option>
               {filteredEmployees.map((emp) => (
@@ -267,7 +299,7 @@ const BookingForm = () => {
           <div>
             <label className="block mb-1 font-medium">Дата</label>
             <select
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#15803d]"
+              className="w-full p-3 border border-gray-300 rounded-md"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               required
@@ -285,7 +317,7 @@ const BookingForm = () => {
           <div>
             <label className="block mb-1 font-medium">Время</label>
             <select
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#15803d]"
+              className="w-full p-3 border border-gray-300 rounded-md"
               value={selectedTime}
               onChange={(e) => setSelectedTime(e.target.value)}
               required

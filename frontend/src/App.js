@@ -18,6 +18,7 @@ import FinanceReport from "./pages/FinanceReport";
 import ClientList from "./pages/ClientList";
 import ServiceManager from "./pages/ServiceManager";
 import ToastProvider from "./components/ToastProvider";
+import UserAppointments from "./pages/UserAppointments";
 import "./styles/toast.css";
 
 function Form() {
@@ -157,6 +158,7 @@ export default function App() {
               </PrivateRoute>
             }
           />
+          <Route path="/appointments" element={<UserAppointments />} />
           <Route
             path="/employee-calendar"
             element={

@@ -119,7 +119,10 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!appointment) return res.status(404).send({ error: 'Запись не найдена' });
 
     const start = new Date(appointment.date);
-    const totalDuration = appointment.totalDuration || appointment.services.reduce((sum, s) => sum + s.duration, 0);
+    const totalDuration = appointment.totalDuration || appointment.services.reduce((sum, s) => {
+      const duration = s.duration || (s.serviceId?.duration || 0);
+      return sum + duration;
+    }, 0);
     const end = addMinutes(start, totalDuration);
 
     const timesToFree = [];
@@ -130,6 +133,8 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 
     const slotDate = format(start, 'yyyy-MM-dd');
+
+    // Освобождаем слоты
     await Slot.updateMany(
       {
         employeeId: appointment.employeeId,
@@ -139,12 +144,15 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       { isBooked: false }
     );
 
-    await cancelAppointment(req.params.id);
+    // Меняем статус, но НЕ удаляем
+    await Appointment.findByIdAndUpdate(req.params.id, { status: 'cancelled' });
+
     res.send({ message: MESSAGE.APPOINTMENT_CANCELLED });
   } catch (e) {
     console.error(e);
     res.status(500).send({ error: e.message });
   }
 });
+
 
 module.exports = router;

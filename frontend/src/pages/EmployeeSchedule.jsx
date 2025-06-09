@@ -20,7 +20,8 @@ const EmployeeSchedule = () => {
 
   const fetchEmployees = async () => {
     const res = await axios.get('http://localhost:8000/user', { headers });
-    setEmployees(res.data.filter(u => u.roles?.includes('employee')));
+    const employeeList = res.data.filter(u => u.roles?.includes('employee'));
+    setEmployees(employeeList);
   };
 
   const getColorByEmployee = (id) => {
@@ -96,8 +97,8 @@ const EmployeeSchedule = () => {
             start,
             end: end.toISOString(),
             backgroundColor: color,
-            textColor: '#1f2937',
             borderColor: '#888',
+            textColor: '#111827',
             extendedProps: {
               type: 'slot',
               employeeId: slot.employeeId
@@ -147,6 +148,12 @@ const EmployeeSchedule = () => {
         totalDuration: evt.extendedProps.totalDuration,
         totalPrice: evt.extendedProps.totalPrice
       });
+    } else if (evt.extendedProps.type === 'slot') {
+      if (window.confirm('Удалить слот?')) {
+        axios.delete(`http://localhost:8000/slots/${evt.id}`, { headers })
+          .then(() => fetchEvents(selectedEmployeeId))
+          .catch(err => console.error('Ошибка при удалении слота:', err));
+      }
     }
   };
 
@@ -174,8 +181,6 @@ const EmployeeSchedule = () => {
 
   useEffect(() => {
     fetchEmployees().then(() => fetchEvents());
-    const interval = setInterval(() => fetchEvents(selectedEmployeeId), 15000);
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -215,8 +220,8 @@ const EmployeeSchedule = () => {
           events={events}
           locale="ru"
           height="auto"
-          slotMinTime="08:00:00"
-          slotMaxTime="21:00:00"
+          slotMinTime="08:30:00"
+          slotMaxTime="18:00:00"
           allDaySlot={false}
           eventClick={handleEventClick}
         />

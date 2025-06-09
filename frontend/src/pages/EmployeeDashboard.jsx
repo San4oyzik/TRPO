@@ -218,8 +218,8 @@ const EmployeeDashboard = () => {
         eventClick={handleEventClick}
         locale="ru"
         height="auto"
-        slotMinTime="08:00:00"
-        slotMaxTime="21:00:00"
+        slotMinTime="08:30:00"
+        slotMaxTime="18:00:00"
         allDaySlot={false}
         slotDuration="00:15:00"
         slotLabelInterval="00:30:00"

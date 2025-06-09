@@ -140,15 +140,22 @@ async function cancelAppointment(id) {
     cursor = addMinutes(cursor, 30);
   }
 
-  await Slot.updateMany(
-    { employeeId: appt.employeeId, date: slotDate, time: { $in: timesToFree } },
-    { isBooked: false }
-  );
+  // 💡 Лог для отладки
+  console.log('[cancelAppointment] Слоты для освобождения:', timesToFree);
+
+  // 👇 Явно приводим employeeId к строке для надёжного поиска
+  const employeeIdStr = String(appt.employeeId);
+
+await Slot.updateMany(
+  { employeeId: appt.employeeId, date: slotDate, time: { $in: timesToFree } },
+  { $set: { isBooked: false } }
+);
 
   appt.status = 'cancelled';
   await appt.save();
   return appt;
 }
+
 
 /**
  * Check availability
