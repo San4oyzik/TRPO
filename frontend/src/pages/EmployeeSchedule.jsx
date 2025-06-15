@@ -179,6 +179,35 @@ const EmployeeSchedule = () => {
     }
   };
 
+  const handleEventDrop = async info => {
+  const evt = info.event;
+  const newDate = evt.start;
+
+  try {
+    if (evt.extendedProps.type === 'appointment') {
+      await axios.put(
+        `http://localhost:8000/appointments/${evt.id}`,
+        { date: newDate.toISOString() },
+        { headers }
+      );
+    } else if (evt.extendedProps.type === 'slot') {
+      await axios.put(
+        `http://localhost:8000/slots/${evt.id}`,
+        {
+          date: newDate.toISOString().split('T')[0],
+          time: newDate.toTimeString().slice(0, 5)
+        },
+        { headers }
+      );
+    }
+
+    fetchEvents(selectedEmployeeId);
+  } catch (e) {
+    console.error('Ошибка при переносе события:', e);
+  }
+};
+
+
   useEffect(() => {
     fetchEmployees().then(() => fetchEvents());
   }, []);
@@ -214,7 +243,7 @@ const EmployeeSchedule = () => {
         <FullCalendar
           plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
-          editable={false}
+          editable={true}
           selectable
           select={handleSlotGenerate}
           events={events}

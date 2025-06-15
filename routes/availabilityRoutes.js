@@ -7,7 +7,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const { addMinutes, format } = require('date-fns');
 
 // Условный график работы мастера: с 10:00 до 18:00
-const START_HOUR = 10;
+const START_HOUR = 8;
 const END_HOUR = 18;
 
 router.get('/', authMiddleware, async (req, res) => {

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import PhoneInput from '../components/PhoneInput'; // 👈 маска телефона
 
 const BookingForm = () => {
   const [rawServices, setRawServices] = useState([]);
@@ -97,108 +98,121 @@ const BookingForm = () => {
     if (!selectedEmployee || !selectedDate) return;
 
     const fetchTimes = async () => {
-  const token = localStorage.getItem('token');
-  const headers = { Authorization: `Bearer ${token}` };
-  try {
-    const res = await axios.get(
-      `http://localhost:8000/slots/availability?employeeId=${selectedEmployee}`,
-      { headers }
-    );
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      try {
+        const res = await axios.get(
+          `http://localhost:8000/slots/availability?employeeId=${selectedEmployee}`,
+          { headers }
+        );
 
-    const slotKeys = Object.keys(res.data.slots);
-    const matchedKey = slotKeys.find((k) => k.startsWith(selectedDate));
-    const allSlots = matchedKey ? res.data.slots[matchedKey] : [];
+        const slotKeys = Object.keys(res.data.slots);
+        const matchedKey = slotKeys.find((k) => k.startsWith(selectedDate));
+        const allSlots = matchedKey ? res.data.slots[matchedKey] : [];
 
-    if (!allSlots.length) {
-      setAvailableTimes([]);
-      return;
-    }
+        if (!allSlots.length) {
+          setAvailableTimes([]);
+          return;
+        }
 
-    const now = new Date();
-    now.setSeconds(0);
-    now.setMilliseconds(0);
-    const todayStr = now.toISOString().split('T')[0];
+        const now = new Date();
+        now.setSeconds(0);
+        now.setMilliseconds(0);
+        const todayStr = now.toISOString().split('T')[0];
 
-    const totalDur = selectedServices.reduce((sum, sid) => {
-      const svc = rawServices.find((s) => String(s._id) === sid);
-      return sum + (svc?.duration || 0);
-    }, 0);
+        const totalDur = selectedServices.reduce((sum, sid) => {
+          const svc = rawServices.find((s) => String(s._id) === sid);
+          return sum + (svc?.duration || 0);
+        }, 0);
 
-    const slotsNeeded = Math.ceil(totalDur / 30);
-    const slotSet = new Set(allSlots);
+        const slotsNeeded = Math.ceil(totalDur / 30);
+        const slotSet = new Set(allSlots);
 
-    const validStartTimes = allSlots.filter((t) => {
-      const start = new Date(`${selectedDate}T${t}`);
-      if (selectedDate === todayStr && start <= now) return false;
+        const validStartTimes = allSlots.filter((t) => {
+          const start = new Date(`${selectedDate}T${t}`);
+          if (selectedDate === todayStr && start <= now) return false;
 
-      for (let i = 1; i < slotsNeeded; i++) {
-        const next = new Date(start);
-        next.setMinutes(next.getMinutes() + 30 * i);
-        const nextStr = next.toTimeString().slice(0, 5);
-        if (!slotSet.has(nextStr)) return false;
+          for (let i = 1; i < slotsNeeded; i++) {
+            const next = new Date(start);
+            next.setMinutes(next.getMinutes() + 30 * i);
+            const nextStr = next.toTimeString().slice(0, 5);
+            if (!slotSet.has(nextStr)) return false;
+          }
+
+          return true;
+        });
+
+        validStartTimes.sort((a, b) => {
+          const [h1, m1] = a.split(':').map(Number);
+          const [h2, m2] = b.split(':').map(Number);
+          return h1 * 60 + m1 - (h2 * 60 + m2);
+        });
+
+        setAvailableTimes(validStartTimes);
+        if (validStartTimes.length > 0) {
+          setSelectedTime(validStartTimes[0]);
+        } else {
+          setSelectedTime('');
+        }
+      } catch (e) {
+        toast.error('Не удалось загрузить время');
       }
-
-      return true;
-    });
-
-    validStartTimes.sort((a, b) => {
-      const [h1, m1] = a.split(':').map(Number);
-      const [h2, m2] = b.split(':').map(Number);
-      return h1 * 60 + m1 - (h2 * 60 + m2);
-    });
-
-    setAvailableTimes(validStartTimes);
-    if (validStartTimes.length > 0) {
-      setSelectedTime(validStartTimes[0]);
-    } else {
-      setSelectedTime('');
-    }
-  } catch (e) {
-    toast.error('Не удалось загрузить время');
-  }
-};
-
+    };
 
     fetchTimes();
   }, [selectedEmployee, selectedDate, selectedServices, rawServices]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!selectedServices.length || !selectedEmployee || !selectedDate || !selectedTime) {
-      toast.warning('Заполните все поля');
-      return;
-    }
+  if (!selectedServices.length || !selectedEmployee || !selectedDate || !selectedTime) {
+    toast.warning('Заполните все поля');
+    return;
+  }
 
-    if (isExternal && (!externalName.trim() || !externalPhone.trim())) {
+  let formattedPhone = '';
+
+  if (isExternal) {
+    if (!externalName.trim() || !externalPhone.trim()) {
       toast.warning('Введите имя и телефон клиента');
       return;
     }
 
-    const token = localStorage.getItem('token');
-    const headers = { Authorization: `Bearer ${token}` };
-    const clientId = JSON.parse(atob(token.split('.')[1])).id;
+    const rawPhone = externalPhone.replace(/\D/g, '').trim(); // убираем всё кроме цифр
+    formattedPhone = rawPhone.startsWith('7') ? rawPhone : `7${rawPhone}`;
+    const phoneRegex = /^7\d{10}$/;
 
-    try {
-      const dt = new Date(`${selectedDate}T${selectedTime}`);
-      await axios.post(
-        'http://localhost:8000/appointments',
-        {
-          clientId,
-          employeeId: selectedEmployee,
-          services: selectedServices,
-          date: dt.toISOString(),
-          ...(isExternal ? { externalName, externalPhone } : {}),
-        },
-        { headers }
-      );
-
-      toast.success('Вы успешно записались!');
-      setTimeout(() => window.location.reload(), 2000);
-    } catch (e) {
-      toast.error('Ошибка при записи');
+    if (!phoneRegex.test(formattedPhone)) {
+      toast.warning('Введите корректный номер телефона (например, 79123456789)');
+      return;
     }
-  };
+  }
+
+  const token = localStorage.getItem('token');
+  const headers = { Authorization: `Bearer ${token}` };
+  const clientId = JSON.parse(atob(token.split('.')[1])).id;
+
+  try {
+    const dt = new Date(`${selectedDate}T${selectedTime}`);
+    await axios.post(
+      'http://localhost:8000/appointments',
+      {
+        clientId,
+        employeeId: selectedEmployee,
+        services: selectedServices,
+        date: dt.toISOString(),
+        ...(isExternal ? { externalName, externalPhone: formattedPhone } : {}),
+      },
+      { headers }
+    );
+
+    toast.success('Вы успешно записались!');
+    setTimeout(() => window.location.reload(), 2000);
+  } catch (e) {
+    toast.error('Ошибка при записи');
+  }
+};
+
 
   return (
     <div className="max-w-xl mx-auto p-6 bg-white rounded-xl shadow border border-gray-200 mt-8">
@@ -229,7 +243,7 @@ const BookingForm = () => {
         {isExternal && (
           <>
             <div>
-              <label className="block mb-1 font-medium">ФИО клиента</label>
+              <label className="block mb-1 font-medium">ФИО</label>
               <input
                 type="text"
                 value={externalName}
@@ -238,9 +252,8 @@ const BookingForm = () => {
               />
             </div>
             <div>
-              <label className="block mb-1 font-medium">Телефон клиента</label>
-              <input
-                type="tel"
+              <label className="block mb-1 font-medium">Телефон</label>
+              <PhoneInput
                 value={externalPhone}
                 onChange={(e) => setExternalPhone(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-md"

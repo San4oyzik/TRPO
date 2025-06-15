@@ -79,9 +79,9 @@ router.delete('/:userId', authMiddleware, async (req, res) => {
 
 // Обновление данных пользователя
 router.put('/:userId/edit', authMiddleware, async (req, res) => {
-  const { fullName, phone, services } = req.body;
+  const { fullName, phone, services, password } = req.body;
   try {
-    await updateUser(req.params.userId, { fullName, phone, services });
+    await updateUser(req.params.userId, { fullName, phone, services, password });
     res.send(MESSAGE.UPDATE_USER_DATA);
   } catch (e) {
     console.error(e);
