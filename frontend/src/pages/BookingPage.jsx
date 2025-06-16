@@ -25,8 +25,8 @@ const BookingForm = () => {
       const headers = { Authorization: `Bearer ${token}` };
       try {
         const [servicesRes, usersRes] = await Promise.all([
-          axios.get('http://localhost:8000/services', { headers }),
-          axios.get('http://localhost:8000/user', { headers }),
+          axios.get('http://45.146.165.22:8000/services', { headers }),
+          axios.get('http://45.146.165.22:8000/user', { headers }),
         ]);
         setRawServices(servicesRes.data);
         setRawEmployees(usersRes.data.filter(u => u.roles?.includes('employee')));
@@ -74,7 +74,7 @@ const BookingForm = () => {
       const headers = { Authorization: `Bearer ${token}` };
       try {
         const res = await axios.get(
-          `http://localhost:8000/slots/availability?employeeId=${selectedEmployee}`,
+          `http://45.146.165.22:8000/slots/availability?employeeId=${selectedEmployee}`,
           { headers }
         );
         const today = new Date();
@@ -102,7 +102,7 @@ const BookingForm = () => {
       const headers = { Authorization: `Bearer ${token}` };
       try {
         const res = await axios.get(
-          `http://localhost:8000/slots/availability?employeeId=${selectedEmployee}`,
+          `http://45.146.165.22:8000/slots/availability?employeeId=${selectedEmployee}`,
           { headers }
         );
 
@@ -195,7 +195,7 @@ const BookingForm = () => {
   try {
     const dt = new Date(`${selectedDate}T${selectedTime}`);
     await axios.post(
-      'http://localhost:8000/appointments',
+      'http://45.146.165.22:8000/appointments',
       {
         clientId,
         employeeId: selectedEmployee,

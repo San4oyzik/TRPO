@@ -37,8 +37,8 @@ const AuthForm = () => {
 
   const url =
     mode === "register"
-      ? "http://localhost:8000/user/register"
-      : "http://localhost:8000/user/login";
+      ? "http://45.146.165.22:8000/user/register"
+      : "http://45.146.165.22:8000/user/login";
 
   const payload =
     mode === "register"

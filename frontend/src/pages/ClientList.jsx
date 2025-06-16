@@ -11,7 +11,7 @@ export default function ClientList() {
   useEffect(() => {
     const fetchClients = async () => {
       try {
-        const res = await axios.get('http://localhost:8000/user', { headers });
+        const res = await axios.get('http://45.146.165.22:8000/user', { headers });
         const users = res.data.filter(user => user.roles?.includes('user'));
         setClients(users);
       } catch (e) {
@@ -32,7 +32,7 @@ export default function ClientList() {
 
     if (!appointmentsMap[clientId]) {
       try {
-        const res = await axios.get(`http://localhost:8000/appointments?clientId=${clientId}`, { headers });
+        const res = await axios.get(`http://45.146.165.22:8000/appointments?clientId=${clientId}`, { headers });
         setAppointmentsMap(prev => ({ ...prev, [clientId]: res.data }));
       } catch (e) {
         console.error('Ошибка при получении записей клиента:', e);

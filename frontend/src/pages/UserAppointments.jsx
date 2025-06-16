@@ -13,7 +13,7 @@ const UserAppointments = () => {
   const fetchAppointments = async () => {
     try {
       const clientId = JSON.parse(atob(token.split('.')[1])).id;
-      const res = await axios.get(`http://localhost:8000/appointments?clientId=${clientId}`, {
+      const res = await axios.get(`http://45.146.165.22:8000/appointments?clientId=${clientId}`, {
         headers,
       });
       setAppointments(res.data.sort((a, b) => new Date(a.date) - new Date(b.date)));
@@ -26,7 +26,7 @@ const UserAppointments = () => {
 
   const cancelAppointment = async (id) => {
     try {
-      await axios.delete(`http://localhost:8000/appointments/${id}`, { headers });
+      await axios.delete(`http://45.146.165.22:8000/appointments/${id}`, { headers });
       toast.success('Запись отменена');
       await fetchAppointments();
     } catch (e) {

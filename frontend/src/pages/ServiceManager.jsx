@@ -28,7 +28,7 @@ export default function ServiceManager() {
 
   const fetchServices = async () => {
     try {
-      const res = await fetch("http://localhost:8000/services", { headers });
+      const res = await fetch("http://45.146.165.22:8000/services", { headers });
       const data = await res.json();
       setServices(data);
     } catch (error) {
@@ -38,7 +38,7 @@ export default function ServiceManager() {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch("http://localhost:8000/user", { headers });
+      const res = await fetch("http://45.146.165.22:8000/user", { headers });
       const data = await res.json();
       const employeesOnly = data.filter((u) => u.roles?.includes("employee"));
       setEmployees(employeesOnly);
@@ -78,7 +78,7 @@ export default function ServiceManager() {
   const handleDelete = async (id) => {
     if (!window.confirm("Удалить услугу?")) return;
     try {
-      await fetch(`http://localhost:8000/services/${id}`, {
+      await fetch(`http://45.146.165.22:8000/services/${id}`, {
         method: "DELETE",
         headers,
       });
@@ -106,8 +106,8 @@ export default function ServiceManager() {
     e.preventDefault();
     const method = editingId ? "PUT" : "POST";
     const url = editingId
-      ? `http://localhost:8000/services/${editingId}`
-      : "http://localhost:8000/services";
+      ? `http://45.146.165.22:8000/services/${editingId}`
+      : "http://45.146.165.22:8000/services";
 
     try {
       await fetch(url, {

@@ -19,7 +19,7 @@ const EmployeeSchedule = () => {
   const headers = { Authorization: `Bearer ${token}` };
 
   const fetchEmployees = async () => {
-    const res = await axios.get('http://localhost:8000/user', { headers });
+    const res = await axios.get('http://45.146.165.22:8000/user', { headers });
     const employeeList = res.data.filter(u => u.roles?.includes('employee'));
     setEmployees(employeeList);
   };
@@ -32,12 +32,12 @@ const EmployeeSchedule = () => {
   const fetchEvents = async (employeeId = '') => {
     try {
       const slotsEndpoint = employeeId
-        ? `http://localhost:8000/slots?employeeId=${employeeId}`
-        : `http://localhost:8000/slots/all`;
+        ? `http://45.146.165.22:8000/slots?employeeId=${employeeId}`
+        : `http://45.146.165.22:8000/slots/all`;
 
       const appointmentsEndpoint = employeeId
-        ? `http://localhost:8000/appointments?employeeId=${employeeId}`
-        : `http://localhost:8000/appointments`;
+        ? `http://45.146.165.22:8000/appointments?employeeId=${employeeId}`
+        : `http://45.146.165.22:8000/appointments`;
 
       const [appointmentsRes, slotsRes] = await Promise.all([
         axios.get(appointmentsEndpoint, { headers }),
@@ -126,7 +126,7 @@ const EmployeeSchedule = () => {
 
     try {
       await axios.post(
-        'http://localhost:8000/slots/generate',
+        'http://45.146.165.22:8000/slots/generate',
         { employeeId: selectedEmployeeId, date, startTime, endTime },
         { headers }
       );
@@ -150,7 +150,7 @@ const EmployeeSchedule = () => {
       });
     } else if (evt.extendedProps.type === 'slot') {
       if (window.confirm('Удалить слот?')) {
-        axios.delete(`http://localhost:8000/slots/${evt.id}`, { headers })
+        axios.delete(`http://45.146.165.22:8000/slots/${evt.id}`, { headers })
           .then(() => fetchEvents(selectedEmployeeId))
           .catch(err => console.error('Ошибка при удалении слота:', err));
       }
@@ -159,7 +159,7 @@ const EmployeeSchedule = () => {
 
   const handleMarkAsCompleted = async () => {
     try {
-      await axios.put(`http://localhost:8000/appointments/${selectedEvent.id}`, {
+      await axios.put(`http://45.146.165.22:8000/appointments/${selectedEvent.id}`, {
         status: 'completed'
       }, { headers });
       setSelectedEvent(null);
@@ -171,7 +171,7 @@ const EmployeeSchedule = () => {
 
   const handleCancelAppointment = async () => {
     try {
-      await axios.delete(`http://localhost:8000/appointments/${selectedEvent.id}`, { headers });
+      await axios.delete(`http://45.146.165.22:8000/appointments/${selectedEvent.id}`, { headers });
       setSelectedEvent(null);
       fetchEvents(selectedEmployeeId);
     } catch (e) {
@@ -186,13 +186,13 @@ const EmployeeSchedule = () => {
   try {
     if (evt.extendedProps.type === 'appointment') {
       await axios.put(
-        `http://localhost:8000/appointments/${evt.id}`,
+        `http://45.146.165.22:8000/appointments/${evt.id}`,
         { date: newDate.toISOString() },
         { headers }
       );
     } else if (evt.extendedProps.type === 'slot') {
       await axios.put(
-        `http://localhost:8000/slots/${evt.id}`,
+        `http://45.146.165.22:8000/slots/${evt.id}`,
         {
           date: newDate.toISOString().split('T')[0],
           time: newDate.toTimeString().slice(0, 5)

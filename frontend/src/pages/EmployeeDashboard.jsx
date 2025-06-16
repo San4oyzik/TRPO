@@ -97,13 +97,13 @@ const EmployeeDashboard = () => {
     try {
       if (evt.extendedProps.type === 'appointment') {
         await axios.put(
-          `http://localhost:8000/appointments/${evt.id}`,
+          `http://45.146.165.22:8000/appointments/${evt.id}`,
           { date: newDate.toISOString() },
           { headers }
         );
       } else {
         await axios.put(
-          `http://localhost:8000/slots/${evt.id}`,
+          `http://45.146.165.22:8000/slots/${evt.id}`,
           {
             date: newDate.toISOString().split('T')[0],
             time: newDate.toTimeString().slice(0, 5)
@@ -131,7 +131,7 @@ const EmployeeDashboard = () => {
       });
     } else {
       if (window.confirm('Удалить этот свободный слот?')) {
-        axios.delete(`http://localhost:8000/slots/${evt.id}`, { headers })
+        axios.delete(`http://45.146.165.22:8000/slots/${evt.id}`, { headers })
           .then(fetchEvents)
           .catch(e => console.error('Ошибка при удалении слота:', e));
       }
@@ -152,7 +152,7 @@ const EmployeeDashboard = () => {
       const startTime = start.toTimeString().slice(0, 5);
       const endTime = end.toTimeString().slice(0, 5);
       await axios.post(
-        'http://localhost:8000/slots/generate',
+        'http://45.146.165.22:8000/slots/generate',
         { employeeId, date, startTime, endTime },
         { headers }
       );
@@ -164,7 +164,7 @@ const EmployeeDashboard = () => {
 
   const handleMarkAsCompleted = async () => {
     try {
-      await axios.put(`http://localhost:8000/appointments/${selectedEvent.id}`, {
+      await axios.put(`http://45.146.165.22:8000/appointments/${selectedEvent.id}`, {
         status: 'completed'
       }, { headers });
       fetchEvents();
@@ -176,7 +176,7 @@ const EmployeeDashboard = () => {
 
   const handleCancelAppointment = async () => {
     try {
-      await axios.delete(`http://localhost:8000/appointments/${selectedEvent.id}`, { headers });
+      await axios.delete(`http://45.146.165.22:8000/appointments/${selectedEvent.id}`, { headers });
       fetchEvents();
       setSelectedEvent(null);
     } catch (e) {
